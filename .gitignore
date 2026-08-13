@@ -14,6 +14,7 @@ vendor/
 storage/
 uploads/
 generated/
+cookies.txt
 
 # OS files
 .DS_Store
