@@ -34,3 +34,15 @@ Instead, `GEMINI_PROVIDER=mock` runs all five steps through the same `PipelineSe
 
 The limitation is that mocks cannot prove live quota behavior, real latency, or visual consistency. I accepted that limitation during development and used one final billed run only after the automated suite was stable. The real run used `gemini-3.6-flash` and `gemini-3.1-flash-image`, completed all five steps, generated two portraits and one chapter illustration, and reopened with its persisted `5/5` Done state.
 
+# If I had one more day
+
+I would move the long-running Gemini execution out of the HTTP request and into a small database-backed worker.
+
+Currently, `run-step.php` waits for Gemini to finish each image request before returning a response to the browser. If Gemini takes a long time, the execution still depends on the Apache/PHP request lifetime. Heartbeats and stale recovery make interrupted requests safer, but this is still a limitation.
+
+With a worker, the API would accept the step explicitly requested by the user, save its state in the database, and return immediately. The worker would handle the Gemini calls in the background and persist progress after each item. For example, after generating the first portrait, it would save the result before starting the next portrait.
+
+If the worker stopped while Gemini was running, the system would not automatically call Gemini again. The user would still have to explicitly retry the failed step.
+
+This approach would make browser disconnects, long-running Gemini calls, and server restarts easier to handle. I did not implement it during the assessment because adding and managing a worker process would introduce more infrastructure and complexity than this local XAMPP project requires.
+
