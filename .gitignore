@@ -1,25 +1,35 @@
-# Environment / secrets
+# Local environment and secrets
 .env
 .env.*
 !.env.example
 
-# Dependencies
-node_modules/
-vendor/
+# Installed dependencies
+/node_modules/
+/vendor/
 
-# Logs
+# Logs and test reports
 *.log
+/npm-debug.log*
+/coverage/
+/.phpunit.cache/
 
-# Runtime / generated files
-storage/
-uploads/
-generated/
-cookies.txt
+# Runtime books and generated images
+/backend/storage/books/*
+!/backend/storage/books/.gitkeep
+/backend/storage/images/portraits/*
+!/backend/storage/images/portraits/.gitkeep
+/backend/storage/images/illustrations/*
+!/backend/storage/images/illustrations/.gitkeep
+
+# Other local runtime files
+/uploads/
+/generated/
+/cookies.txt
 
 # OS files
 .DS_Store
 Thumbs.db
 
-# IDE
-.vscode/
-.idea/
+# Local editor settings
+/.vscode/
+/.idea/
