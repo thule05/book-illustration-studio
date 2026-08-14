@@ -789,6 +789,32 @@ textarea {
   background: var(--grad-orange);
 }
 
+.step-running-dot,
+.step-failed-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.step-running-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--grad-orange);
+  animation: gd-dot-pulse 1.2s ease-in-out infinite;
+}
+
+.step-failed-mark {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--grad-orange-deep);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+
 
 /* =========================================================
    PROJECT DETAIL
@@ -881,6 +907,18 @@ textarea {
 .entity-card .art .placeholder-label.muted {
   background: none;
   color: var(--grad-ink-2);
+}
+
+.entity-generating {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 11px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--grad-ink-2);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .entity-card .body {
@@ -1334,5 +1372,112 @@ button:focus-visible,
 
   .stepper .lbl {
     display: none;
+  }
+}
+
+/* =========================================================
+   PIPELINE LOADING STATE
+   Match the app-demo spacing and typography
+   ========================================================= */
+
+.step-loading-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  color: var(--grad-ink);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.loading-spinner {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  margin-top: 3px;
+  border: 2px solid #d8d8d8;
+  border-top-color: var(--grad-orange);
+  border-radius: 50%;
+  animation: grad-spin 0.8s linear infinite;
+}
+
+@keyframes grad-spin {
+  to { transform: rotate(360deg); }
+}
+
+.button-spinner {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: button-spin 0.75s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes button-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* =========================================================
+   PIPELINE GENERATING PANEL
+   ========================================================= */
+
+.pipeline-loading {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--grad-ink);
+}
+
+.pipeline-loading-text {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Dòng Reopening */
+.pipeline-loading-help {
+  display: block;
+
+  margin-top: 18px !important;
+  margin-bottom: 18px !important;
+
+  font-size: 12px;
+  line-height: 1.5;
+  color: #8b8b8b;
+}
+
+/* Button */
+.pipeline-loading-help + .gd-btn,
+.pipeline-loading-help + button {
+  margin-top: 0 !important;
+}
+
+/* Spinner */
+.pipeline-spinner {
+  width: 15px;
+  height: 15px;
+  min-width: 15px;
+  margin-top: 3px;
+
+  border: 2px solid #d8d8d8;
+  border-top-color: #ff6b00;
+  border-radius: 50%;
+
+  animation: pipeline-spin 0.8s linear infinite;
+}
+
+@keyframes pipeline-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
   }
 }
