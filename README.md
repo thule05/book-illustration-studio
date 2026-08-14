@@ -33,6 +33,7 @@ Animation, music, narration, media mixing, and public deployment are intentional
 - Node.js 18 or newer for the frontend tests.
 - A modern browser.
 - A Gemini API key with Cloud Billing only when testing the real image provider.
+- Docker Compose is not required because XAMPP already provides Apache, PHP, and MySQL for this local Windows setup.
 
 The project has been checked locally with PHP `8.0.30` and Node.js `24.19.0`.
 
@@ -244,12 +245,3 @@ tests/
   backend/                  API smoke and provider contract tests
   frontend/                 important UI state tests
 ```
-
-## Submission notes
-
-- No Docker Compose file is included. XAMPP already supplies Apache, PHP, and MySQL for this local-only Windows setup, so Docker would duplicate the runtime rather than simplify it.
-- Generated books, images, cookies, dependency folders, and `.env` are ignored by Git.
-- `.env.example`, `AGENTS.md`, `DECISIONS.md`, `TESTING.md`, and the `docs/` artifacts are intentionally committed.
-- Do not deploy this project publicly; the assessment expects a local demonstration.
-
-Engineering trade-offs and AI overrides are documented in [DECISIONS.md](DECISIONS.md).
