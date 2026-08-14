@@ -49,7 +49,7 @@ Before starting a step, the API requires the exact step selected by the user and
 
 ## Frontend state
 
-The frontend may optimistically display `running` immediately after a click, but it never marks a step completed. While a step is running, the project detail page polls the backend and renders the persisted state. Refreshing, signing out, or signing back in reconstructs progress, prompts, media, and errors from MySQL.
+The frontend may optimistically display `running` immediately after a click, but it never marks a step completed. While a step is running, the project detail page polls the backend and renders the persisted state. Heartbeat-only responses do not rebuild the DOM; visible changes such as a completed portrait update the view without replaying page-entry animations. Refreshing, signing out, or signing back in reconstructs progress, prompts, media, and errors from MySQL.
 
 ## File storage
 

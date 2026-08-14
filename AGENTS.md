@@ -78,6 +78,7 @@ The real provider must:
 - Show per-item portrait and illustration progress.
 - Poll project detail only while work is running.
 - Show retry and stuck-step recovery actions.
+- Do not rebuild the DOM for heartbeat-only polling responses or replay entrance animations during in-place updates.
 - Do not put pipeline state in `localStorage`.
 
 ## Security

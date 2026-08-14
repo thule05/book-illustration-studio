@@ -14,7 +14,7 @@ The script creates a temporary MySQL database and storage directory, starts an i
 
 There are three test groups:
 
-- The frontend tests load the real `frontend/js/app.js` in a small Node.js DOM harness. They cover project progress, loading, failure, retry, media mapping, keyboard-focusable navigation, and the helper functions that were previously duplicated.
+- The frontend tests load the real `frontend/js/app.js` in a small Node.js DOM harness. They cover project progress, loading, failure, retry, media mapping, keyboard-focusable navigation, polling render stability, and the helper functions that were previously duplicated.
 
 - The backend smoke test calls the PHP APIs and runs a complete five-step project with the mock provider. It also covers sign-in persistence, exact-step validation, step ordering, the two-character and one-chapter caps, duplicate requests, failed-step retry, stale-step recovery, and media ownership.
 
@@ -45,11 +45,13 @@ PASS  detail mapping uses singular style and media URLs
 PASS  running panel renders spinner, explanation and disabled button
 PASS  navigation uses keyboard-focusable controls
 PASS  loading messages describe real calls without demo timing
+PASS  polling signature ignores heartbeat-only changes
+PASS  in-place render suppresses entrance motion
 PASS  failed step renders the same-step retry action
 PASS  retry clears stale UI while the new request is running
 PASS  critical project helpers have one declaration each
 
-Summary: 9 passed, 0 failed
+Summary: 11 passed, 0 failed
 
 PASS  resumable book upload contract
 PASS  upload session does not forward API key
@@ -97,7 +99,7 @@ PASS  adult characters only
 Summary: 28 passed, 0 failed
 ```
 
-Total: 48 passed, 0 failed.
+Total: 50 passed, 0 failed.
 
 I also checked the normal XAMPP Apache route after the automated run. The frontend returned `200`; direct requests for `.env`, `cookies.txt`, `.git/HEAD`, and `backend/storage/` returned `403`; and an unauthenticated request to `media.php` returned `401`.
 

@@ -123,7 +123,7 @@ The test command:
 
 It does not modify development projects, read the local Gemini key, call the Gemini network, or consume quota.
 
-The supplied script expects the default XAMPP test connection: MySQL on `127.0.0.1:3306`, user `root`, and an empty password. The latest recorded run is **48 passed, 0 failed**. The complete output and testing rationale are in [TESTING.md](TESTING.md).
+The supplied script expects the default XAMPP test connection: MySQL on `127.0.0.1:3306`, user `root`, and an empty password. The latest recorded run is **50 passed, 0 failed**. The complete output and testing rationale are in [TESTING.md](TESTING.md).
 
 ## Environment configuration
 
