@@ -1,76 +1,255 @@
 # Book Illustration Studio
 
-A local PHP/MySQL application that turns book text into a five-step illustration pipeline: Style → Characters → Portraits → Chapters → Illustrations.
+Book Illustration Studio is a full-stack application that turns a book's text into character portraits and one chapter illustration with the Gemini API.
 
-## Prerequisites
+The user runs five steps explicitly and in order:
 
-- Windows with XAMPP (PHP 8.0+ and MySQL/MariaDB)
-- Node.js 18+ for frontend tests
-- MySQL running on `127.0.0.1:3306`
+`Style → Characters → Portraits → Chapters → Illustrations`
 
-Import `database/schema.sql`, copy `.env.example` to `.env`, and adjust the database values if needed. Development defaults to `GEMINI_PROVIDER=mock`; no Gemini key is required.
+The application supports a mock provider for normal development and a real Gemini REST provider for the final billed check. Both providers use the same backend pipeline and persistence path; generated results are never faked in the frontend.
 
-## Start
+## What the application covers
 
-```powershell
-.\start.ps1
+- Name-and-email identity without passwords or OAuth.
+- Multiple projects per user.
+- Project creation from pasted text or a `.txt` upload.
+- Five persistent, user-triggered pipeline steps.
+- At most two adult characters and one chapter, enforced by the backend.
+- Per-item progress while portraits and illustrations are generated.
+- Project recovery after refresh, sign-out, or server restart.
+- Duplicate-request protection across double-clicks and browser tabs.
+- Failed-step retry without rerunning completed work.
+- Stale-running recovery without manual database changes.
+- Local storage for book text and generated images.
+
+Animation, music, narration, media mixing, and public deployment are intentionally outside the submission scope.
+
+## Requirements
+
+- Windows with [XAMPP](https://www.apachefriends.org/) installed.
+- PHP 8.0 or newer through XAMPP.
+- XAMPP Apache using the normal local HTTP port.
+- XAMPP MySQL/MariaDB available at `127.0.0.1:3306`.
+- Node.js 18 or newer for the frontend tests.
+- A modern browser.
+- A Gemini API key with Cloud Billing only when testing the real image provider.
+
+The project has been checked locally with PHP `8.0.30` and Node.js `24.19.0`.
+
+## Quick start with the mock provider
+
+The mock provider is the recommended way to review the application without a Gemini key or paid quota.
+
+### 1. Place the repository inside XAMPP `htdocs`
+
+For example:
+
+```text
+D:\Program Files\Xampp\htdocs\book-illustration-studio
 ```
 
-The command starts (or reuses) XAMPP Apache and MySQL. Open
-`http://localhost/book-illustration-studio/frontend/`. Apache is used instead
-of PHP's single-process development server so project polling can show each
-portrait as it lands during a long running step. Stop the services from the
-XAMPP Control Panel when finished.
+`start.ps1` finds Apache and MySQL relative to this location. It will stop with a clear error if the repository is outside `htdocs`.
 
-## Test
+### 2. Create the local environment file
+
+From the repository root:
 
 ```powershell
-.\test.ps1
+Copy-Item .env.example .env
 ```
 
-The test command creates a temporary isolated database and storage directory, runs frontend and backend tests with the mock provider, then removes those test resources. It does not use the development database or Gemini quota.
+The checked-in example already defaults to:
 
-## Environment
+```dotenv
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_NAME=book_illustration_studio
+DB_USER=root
+DB_PASSWORD=
+GEMINI_PROVIDER=mock
+```
 
-- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
-- `GEMINI_PROVIDER=mock|gemini`
-- `GEMINI_API_KEY` for the real provider only
-- `GEMINI_TEXT_MODEL` (default `gemini-3.6-flash`)
-- `GEMINI_IMAGE_MODEL` (default `gemini-3.1-flash-image`)
-- `GEMINI_IMAGE_SIZE` (`1K` by default)
-- `GEMINI_CONNECT_TIMEOUT_SECONDS`, `GEMINI_REQUEST_TIMEOUT_SECONDS`
-- `PIPELINE_EXECUTION_TIMEOUT_SECONDS` (default 600) keeps XAMPP's PHP request
-  alive for sequential image calls without changing the global `php.ini`
-- `MOCK_LATENCY_MS` to make running UI visible during local development
-- `STEP_STALE_SECONDS` for stuck-step recovery (default 420; keep it above two
-  sequential Gemini request timeouts; Portraits refreshes a per-item heartbeat)
-- `STORAGE_ROOT` to override `backend/storage`
+Keep `.env` local. It is ignored by Git and must never be committed.
 
-Nano Banana image models require Cloud Billing. Billing must be active on the same Google Cloud project that owns the API key, otherwise image quota can remain zero.
+### 3. Start Apache and MySQL
 
-## Run once with billed Gemini
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\start.ps1
+```
 
-Keep the mock provider while developing. For the final real verification:
+The script starts or reuses the XAMPP Apache and MySQL processes, then prints the application URL. Stop the services later from the XAMPP Control Panel.
 
-1. Enable Cloud Billing on the Google Cloud project that owns the Gemini API key, and confirm the image-model quota is no longer zero.
-2. Put the following values in the local `.env` file (never commit that file):
+### 4. Import the database schema once
 
-   ```dotenv
-   GEMINI_PROVIDER=gemini
-   GEMINI_API_KEY=your_local_key
-   GEMINI_TEXT_MODEL=gemini-3.6-flash
-   GEMINI_IMAGE_MODEL=gemini-3.1-flash-image
-   GEMINI_IMAGE_SIZE=1K
-   ```
+Open [phpMyAdmin](http://localhost/phpmyadmin/), choose **Import**, and select:
 
-3. Restart the stack with `./start.ps1`.
-4. Create a new project and run all five buttons in order while recording the screen. A project already completed with the mock provider is intentionally idempotent and will not be regenerated.
-5. If a paid call fails, read the saved error in the UI and retry that same step manually. The backend never auto-retries a Gemini call.
+```text
+database/schema.sql
+```
 
-The implementation follows the five-step [Google book illustration notebook](https://colab.research.google.com/github/google-gemini/cookbook/blob/main/examples/Book_illustration.ipynb): the book is uploaded once, text outputs use structured JSON where required, and persisted interaction IDs chain later text and image calls. The REST request shapes follow the official [File API](https://ai.google.dev/gemini-api/docs/file-input-methods) and [Interactions API](https://ai.google.dev/api/interactions-api).
+The schema creates the `book_illustration_studio` database and all required tables. It is intended as a one-time setup; do not re-import it into a populated database unless that data has been backed up.
+
+### 5. Open the application
+
+For the default folder name:
+
+```text
+http://localhost/book-illustration-studio/frontend/
+```
+
+Use the URL printed by `start.ps1` if the repository folder has a different name.
+
+Enter a name and email, create a project, and run the five buttons in order. Mock generation still goes through the backend services, database state, retry rules, and local media storage.
+
+## Run the tests
+
+One command runs the frontend tests, real-provider contract tests, and backend smoke tests:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\test.ps1
+```
+
+The test command:
+
+- Creates a uniquely named temporary database.
+- Uses a temporary storage directory.
+- Forces `GEMINI_PROVIDER=mock`.
+- Starts an isolated PHP server.
+- Runs all test groups.
+- Drops the test database and removes temporary storage afterward.
+
+It does not modify development projects, read the local Gemini key, call the Gemini network, or consume quota.
+
+The supplied script expects the default XAMPP test connection: MySQL on `127.0.0.1:3306`, user `root`, and an empty password. The latest recorded run is **42 passed, 0 failed**. The complete output and testing rationale are in [TESTING.md](TESTING.md).
+
+## Environment configuration
+
+Start by copying `.env.example`; only change values that differ on the local machine.
+
+### Database
+
+- `DB_HOST` — MySQL host; default `127.0.0.1`.
+- `DB_PORT` — MySQL port; default `3306`.
+- `DB_NAME` — application database; default `book_illustration_studio`.
+- `DB_USER` — database user; default `root` for XAMPP.
+- `DB_PASSWORD` — database password; empty in a default XAMPP installation.
+
+### Provider and models
+
+- `GEMINI_PROVIDER` — `mock` or `gemini`; development defaults to `mock`.
+- `GEMINI_API_KEY` — required only when `GEMINI_PROVIDER=gemini`.
+- `GEMINI_TEXT_MODEL` — defaults to `gemini-3.6-flash`.
+- `GEMINI_IMAGE_MODEL` — defaults to `gemini-3.1-flash-image`.
+- `GEMINI_IMAGE_SIZE` — defaults to `1K`.
+- `MOCK_LATENCY_MS` — optional mock delay used to make running UI visible.
+
+### Timeouts, recovery, and storage
+
+- `GEMINI_CONNECT_TIMEOUT_SECONDS` — timeout while establishing a Gemini connection; default `15`.
+- `GEMINI_REQUEST_TIMEOUT_SECONDS` — timeout for one Gemini request; default `180`.
+- `PIPELINE_EXECUTION_TIMEOUT_SECONDS` — runtime budget for `run-step.php`; default `600` so sequential portrait requests can finish without changing global `php.ini`.
+- `STEP_STALE_SECONDS` — age after which an abandoned running step becomes retryable; default `420`. Keep it above two sequential Gemini request timeouts. Portrait generation refreshes a heartbeat after each completed item.
+- `STORAGE_ROOT` — optional replacement for `backend/storage`.
+
+## Run with real Gemini
+
+The Nano Banana image model requires Cloud Billing. Billing must be active on the same Google Cloud project that owns the API key; a key from a different project can still show zero image quota.
+
+Keep the mock provider while developing. When ready for one real end-to-end check, update the local `.env` file:
+
+```dotenv
+GEMINI_PROVIDER=gemini
+GEMINI_API_KEY=your_local_key
+GEMINI_TEXT_MODEL=gemini-3.6-flash
+GEMINI_IMAGE_MODEL=gemini-3.1-flash-image
+GEMINI_IMAGE_SIZE=1K
+```
+
+Then:
+
+1. Confirm billing and image quota for the API key's Google Cloud project.
+2. Create a new project; completed mock projects are intentionally not regenerated.
+3. Run Style, Characters, Portraits, Chapters, and Illustrations manually.
+4. Leave the page open to watch per-item progress, or reopen it to read persisted progress.
+5. If a call fails, use the retry action for that step. The backend never retries a paid call automatically.
+
+The book is uploaded to Gemini once. Later text calls reuse its stored interaction context, the second portrait continues the image chain from the first, and the final scene reuses the portrait context for character consistency.
+
+The real provider has also been verified manually with a billed five-step run: two adult portraits and one chapter illustration were saved locally, and the project reopened as Done with `5/5`. Automated tests remain quota-free.
+
+> Never commit `.env`, paste an API key into frontend code, or include a key in screenshots and screen recordings.
 
 ## Architecture
 
-The browser calls small PHP JSON endpoints. `ProjectService` formats persisted project data, while `PipelineService` enforces ordered state transitions, retry, stale recovery, and duplicate execution protection. `project_steps` is the pipeline source of truth; `projects.status` is a reconciled summary. Providers implement the same interface, so mock and real Gemini execution share the backend persistence path. Book text and generated images are stored locally and served through `media.php`.
+The application stays deliberately small:
 
-`RealGeminiProvider` is implemented and covered by a fake-transport contract test, so the normal test command uses no network or quota. A billed end-to-end run is still intentionally left as a manual verification because no billed key is committed or available to the test suite.
+```text
+Browser
+  → PHP JSON endpoints
+    → ProjectService / PipelineService
+      → MySQL state + local filesystem
+      → MockGeminiProvider or RealGeminiProvider
+```
+
+- `frontend/` contains the single-page interface and Gradion styling.
+- `backend/api/` contains small identity, project, pipeline, and media endpoints.
+- `ProjectService` reads and formats persisted project data.
+- `PipelineService` enforces ordering, locking, retry, stale recovery, caps, and status transitions.
+- `project_steps` is the source of truth for five-step progress.
+- `projects.status` is a reconciled summary used by the project list.
+- `MockGeminiProvider` and `RealGeminiProvider` implement the same interface.
+- `backend/storage/` holds uploaded books and generated media.
+- `media.php` serves files through validated relative paths rather than exposing storage directly.
+
+The real provider uses Gemini's REST APIs because the Interactions workflow is fully available over HTTP and does not require another SDK layer in the PHP stack. Its behavior follows steps 1–5 of Google's [Book illustration notebook](https://colab.research.google.com/github/google-gemini/cookbook/blob/main/examples/Book_illustration.ipynb), including structured character/chapter output and context chaining.
+
+More detail is available in [docs/architecture.md](docs/architecture.md).
+
+## Pipeline state and recovery
+
+Every project starts with five persistent `project_steps` rows.
+
+- `pending → running → completed`
+- `pending → running → failed`
+- `failed → running → completed|failed` after an explicit retry
+
+Before provider execution, the backend locks the selected step and moves it to `running`. Requests for a running step are rejected, completed duplicates return existing data, and out-of-order steps cannot run. A stranded running step becomes retryable after the configured stale timeout.
+
+Project-list status is derived from completed database steps:
+
+- `0/5` — Draft
+- `1/5` through `4/5` — In progress
+- `5/5` — Done
+
+The frontend displays this persisted state; it does not use `localStorage` or browser memory as the pipeline source of truth.
+
+## Project structure
+
+```text
+backend/
+  api/                     PHP JSON endpoints
+  services/                project and pipeline rules
+  services/providers/      mock and real Gemini providers
+  storage/                 local books and generated images
+database/
+  schema.sql               MySQL schema
+docs/
+  architecture.md          detailed system design
+  plan.md                  implementation milestones
+frontend/
+  assets/                   Gradion logo
+  css/style.css             application styling
+  js/app.js                 frontend state and API calls
+tests/
+  backend/                  API smoke and provider contract tests
+  frontend/                 important UI state tests
+```
+
+## Submission notes
+
+- No Docker Compose file is included. XAMPP already supplies Apache, PHP, and MySQL for this local-only Windows setup, so Docker would duplicate the runtime rather than simplify it.
+- Generated books, images, cookies, dependency folders, and `.env` are ignored by Git.
+- `.env.example`, `AGENTS.md`, `DECISIONS.md`, `TESTING.md`, and the `docs/` artifacts are intentionally committed.
+- Do not deploy this project publicly; the assessment expects a local demonstration.
+
+Engineering trade-offs and AI overrides are documented in [DECISIONS.md](DECISIONS.md).
