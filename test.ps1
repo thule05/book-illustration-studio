@@ -74,6 +74,11 @@ try {
         throw 'Frontend tests failed.'
     }
 
+    & $php (Join-Path $repoRoot 'tests\backend\real-provider.php')
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Real Gemini provider contract tests failed.'
+    }
+
     & $php '-d' "session.save_path=$sessionPath" (Join-Path $repoRoot 'tests\backend\smoke.php')
     if ($LASTEXITCODE -ne 0) {
         throw 'Backend tests failed.'
