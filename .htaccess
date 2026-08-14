@@ -1,0 +1,12 @@
+Options -Indexes
+
+# The repository lives inside XAMPP's document root. Keep local secrets,
+# Git metadata, and other dotfiles from being served by Apache.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule (^|/)\. - [F,L]
+</IfModule>
+
+<FilesMatch "^(?:\.env(?:\..*)?|cookies\.txt)$">
+    Require all denied
+</FilesMatch>

@@ -23,10 +23,13 @@ $body = read_json_body();
 
 $projectId = isset($body['project_id']) ? (int) $body['project_id'] : 0;
 $userStyle = isset($body['user_style']) ? (string) $body['user_style'] : null;
-$requestedStep = isset($body['step']) ? strtolower(trim((string) $body['step'])) : null;
+$requestedStep = isset($body['step']) ? strtolower(trim((string) $body['step'])) : '';
 
 if ($projectId <= 0) {
     json_error(400, 'project_id is required.');
+}
+if ($requestedStep === '') {
+    json_error(400, 'step is required.');
 }
 
 $projectService = new ProjectService($pdo);

@@ -9,6 +9,8 @@ declare(strict_types=1);
 $root = dirname(__DIR__, 2);
 $baseUrl = getenv('SMOKE_BASE_URL') ?: 'http://127.0.0.1:8765';
 $cookieFile = sys_get_temp_dir() . '/bis-smoke-cookie.txt';
+$anonymousCookieFile = sys_get_temp_dir() . '/bis-smoke-anonymous-cookie.txt';
+$otherCookieFile = sys_get_temp_dir() . '/bis-smoke-other-cookie.txt';
 
 require_once $root . '/backend/bootstrap.php';
 
@@ -95,6 +97,8 @@ function resetSmokeData(PDO $pdo): void
 }
 
 @unlink($cookieFile);
+@unlink($anonymousCookieFile);
+@unlink($otherCookieFile);
 
 try {
     $pdo->query('SELECT 1');
@@ -162,6 +166,20 @@ if ($detail['status'] === 200 && ($detail['json']['project']['id'] ?? null) === 
     pass('project detail');
 } else {
     fail('project detail', 'status=' . $detail['status']);
+}
+
+$missingStep = httpRequest('POST', "{$baseUrl}/backend/api/run-step.php", [
+    'project_id' => $projectId,
+], $cookieFile);
+$afterMissingStep = httpRequest('GET', "{$baseUrl}/backend/api/project.php?id={$projectId}", null, $cookieFile);
+$completedAfterMissingStep = count(array_filter(
+    $afterMissingStep['json']['steps'] ?? [],
+    static fn (array $step): bool => ($step['state'] ?? '') === 'completed'
+));
+if ($missingStep['status'] === 400 && $completedAfterMissingStep === 0) {
+    pass('missing exact step rejected without progress');
+} else {
+    fail('missing exact step rejected without progress', 'status=' . $missingStep['status']);
 }
 
 // Full mock pipeline
@@ -244,6 +262,33 @@ if (
     pass('media URLs work from the XAMPP project subdirectory');
 } else {
     fail('media URLs work from the XAMPP project subdirectory', "portrait={$characterMedia} chapter={$chapterMedia}");
+}
+
+$portraitPath = (string) ($finalProject['characters'][0]['portrait_path'] ?? '');
+$portraitUrl = "{$baseUrl}/backend/api/media.php?path=" . rawurlencode($portraitPath);
+$authorizedMedia = httpRequest('GET', $portraitUrl, null, $cookieFile);
+if ($portraitPath !== '' && $authorizedMedia['status'] === 200) {
+    pass('project owner can load generated media');
+} else {
+    fail('project owner can load generated media', 'status=' . $authorizedMedia['status']);
+}
+
+$anonymousMedia = httpRequest('GET', $portraitUrl, null, $anonymousCookieFile);
+if ($anonymousMedia['status'] === 401) {
+    pass('anonymous media request blocked');
+} else {
+    fail('anonymous media request blocked', 'status=' . $anonymousMedia['status']);
+}
+
+httpRequest('POST', "{$baseUrl}/backend/api/identity.php", [
+    'name' => 'Other Tester',
+    'email' => 'other@example.com',
+], $otherCookieFile);
+$otherUserMedia = httpRequest('GET', $portraitUrl, null, $otherCookieFile);
+if ($otherUserMedia['status'] === 404) {
+    pass('other user media request blocked');
+} else {
+    fail('other user media request blocked', 'status=' . $otherUserMedia['status']);
 }
 
 // Persisted list state across sign-out/sign-in, including independent projects.
@@ -342,6 +387,7 @@ $pdo->prepare("UPDATE project_steps SET state = 'completed', completed_at = NOW(
 
 $invalid = httpRequest('POST', "{$baseUrl}/backend/api/run-step.php", [
     'project_id' => $projectId2,
+    'step' => 'style',
 ], $cookieFile);
 
 if ($invalid['status'] === 409) {
@@ -368,6 +414,7 @@ $pdo->prepare(
 
 $dup = httpRequest('POST', "{$baseUrl}/backend/api/run-step.php", [
     'project_id' => $projectId3,
+    'step' => 'style',
 ], $cookieFile);
 
 if ($dup['status'] === 409) {
@@ -394,6 +441,7 @@ $pdo->prepare(
 
 $retry = httpRequest('POST', "{$baseUrl}/backend/api/run-step.php", [
     'project_id' => $projectId4,
+    'step' => 'style',
     'user_style' => 'Cottage-core watercolor',
 ], $cookieFile);
 
@@ -425,6 +473,7 @@ $pdo->prepare(
 
 $stale = httpRequest('POST', "{$baseUrl}/backend/api/run-step.php", [
     'project_id' => $projectId5,
+    'step' => 'style',
 ], $cookieFile);
 
 if ($stale['status'] === 200 && ($stale['json']['step'] ?? '') === 'style') {
@@ -482,7 +531,12 @@ $pipeline = new PipelineService(
     new NonAdultMockProvider(getenv('STORAGE_ROOT') ?: $root . '/backend/storage'),
     $projectService
 );
-$pipeline->runStep((int) getenv('SMOKE_PROJECT'), (int) getenv('SMOKE_USER'));
+$pipeline->runStep(
+    (int) getenv('SMOKE_PROJECT'),
+    (int) getenv('SMOKE_USER'),
+    null,
+    'characters'
+);
 PHP);
 
 putenv('SMOKE_ROOT=' . $root);
@@ -505,6 +559,9 @@ if (($charStep['state'] ?? '') === 'failed' && stripos((string) ($charStep['erro
 }
 
 @unlink($tmpScript);
+@unlink($cookieFile);
+@unlink($anonymousCookieFile);
+@unlink($otherCookieFile);
 
 $failed = array_values(array_filter($results, static fn ($r) => !$r['ok']));
 echo "\nSummary: " . (count($results) - count($failed)) . ' passed, ' . count($failed) . " failed\n";
