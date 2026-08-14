@@ -223,8 +223,6 @@ final class ProjectService
 
     private function mediaUrl(string $relativePath): string
     {
-        // Relative to frontend/index.html so this works both at the web root and
-        // from XAMPP's /book-illustration-studio subdirectory.
         return '../backend/api/media.php?path=' . rawurlencode($relativePath);
     }
 }
