@@ -1275,6 +1275,17 @@ footer.app-footer a {
     infinite;
 }
 
+/* Polling may replace visible project data when an item lands. Do not replay
+   page-entry motion for these in-place updates; spinners and status pulses
+   continue to animate normally. */
+#app.suppress-render-motion .app-body,
+#app.suppress-render-motion .step-panel,
+#app.suppress-render-motion .side-note,
+#app.suppress-render-motion .project-row,
+#app.suppress-render-motion .entity-card {
+  animation: none;
+}
+
 .modal-overlay:not([hidden]) {
   animation:
     gd-overlay-in

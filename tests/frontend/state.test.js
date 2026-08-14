@@ -8,8 +8,24 @@ const source = fs.readFileSync(
   "utf8"
 );
 
+const appClasses = new Set();
+
 const elements = {
-  app: { innerHTML: "" },
+  app: {
+    innerHTML: "",
+    classList: {
+      toggle(name, force) {
+        if (force) {
+          appClasses.add(name);
+        } else {
+          appClasses.delete(name);
+        }
+      },
+      contains(name) {
+        return appClasses.has(name);
+      },
+    },
+  },
   toast: { textContent: "", classList: { add() {}, remove() {} } },
   "book-modal": { hidden: true, addEventListener() {} },
   "book-modal-body": { textContent: "" },
@@ -130,6 +146,49 @@ test("loading messages describe real calls without demo timing", () => {
 
   assert.doesNotMatch(messages, /couple of seconds in this demo/i);
   assert.match(messages, /Gemini calls|image generation/i);
+});
+
+test("polling signature ignores heartbeat-only changes", () => {
+  const result = evaluate(`(() => {
+    const project = mapProject({id: 11, title: "Book", completed_steps: 2}, [
+      {step: "style", state: "completed"},
+      {step: "characters", state: "completed"},
+      {step: "portraits", state: "running", updated_at: "first"}
+    ]);
+    project.characters = [{
+      id: 1,
+      name: "Mira",
+      prompt: "Prompt",
+      portraitStatus: "generating",
+      portraitUrl: null
+    }];
+
+    const before = projectRenderSignature(project);
+    project.updatedAt += 1000;
+    project.steps[2].updated_at = "heartbeat";
+    const afterHeartbeat = projectRenderSignature(project);
+    project.characters[0].portraitStatus = "completed";
+    project.characters[0].portraitUrl = "/media/portrait";
+    const afterPortrait = projectRenderSignature(project);
+
+    return {before, afterHeartbeat, afterPortrait};
+  })()`);
+
+  assert.equal(result.before, result.afterHeartbeat);
+  assert.notEqual(result.before, result.afterPortrait);
+});
+
+test("in-place render suppresses entrance motion", () => {
+  evaluate(`(() => {
+    state.initializing = false;
+    state.user = {name: "Tester"};
+    window.location.hash = "#/projects";
+    render({suppressMotion: true});
+  })()`);
+  assert.equal(elements.app.classList.contains("suppress-render-motion"), true);
+
+  evaluate(`render()`);
+  assert.equal(elements.app.classList.contains("suppress-render-motion"), false);
 });
 
 test("failed step renders the same-step retry action", () => {

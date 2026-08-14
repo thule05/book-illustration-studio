@@ -416,6 +416,47 @@ function applyProjectDetail(project, detail) {
 }
 
 
+/*
+ * Polling updates timestamps on every heartbeat, but those timestamps are not
+ * rendered. Build a signature from visible state only so an unchanged poll
+ * does not replace the whole DOM or restart entrance animations.
+ */
+function projectRenderSignature(project) {
+  if (!project) {
+    return "";
+  }
+
+  return JSON.stringify({
+    completedSteps: project.completedSteps,
+    status: project.status,
+    backendStatus: project.backendStatus,
+    style: project.style,
+    steps: (project.steps || []).map(step => ({
+      step: step.step,
+      state: step.state,
+      isStale: Boolean(step.is_stale),
+      error: step.error_message || null
+    })),
+    characters: (project.characters || []).map(character => ({
+      id: character.id,
+      name: character.name,
+      prompt: character.prompt,
+      portraitStatus: character.portraitStatus,
+      portraitError: character.portraitError,
+      portraitUrl: character.portraitUrl
+    })),
+    chapters: (project.chapters || []).map(chapter => ({
+      id: chapter.id,
+      name: chapter.name,
+      prompt: chapter.prompt,
+      illustrationStatus: chapter.illustrationStatus,
+      illustrationError: chapter.illustrationError,
+      illustrationUrl: chapter.illustrationUrl
+    }))
+  });
+}
+
+
 /* =========================================================
    NAVIGATION
    ========================================================= */
@@ -724,7 +765,7 @@ function stopProjectPolling(projectId) {
 }
 
 
-function scheduleProjectPolling(projectId, delay = 700) {
+function scheduleProjectPolling(projectId, delay = 1000) {
   const key = String(projectId);
 
   if (projectPollTimers.has(key)) {
@@ -740,11 +781,15 @@ function scheduleProjectPolling(projectId, delay = 700) {
     }
 
     try {
+      const existingProject = state.projects.find(
+        project => String(project.id) === key
+      );
+      const previousSignature = projectRenderSignature(existingProject);
       const project = await loadProjectDetail(key);
-      render();
+      const nextSignature = projectRenderSignature(project);
 
-      if (project.steps.some(step => step.state === "running")) {
-        scheduleProjectPolling(key, 1000);
+      if (nextSignature !== previousSignature) {
+        render({suppressMotion: true});
       }
     } catch (error) {
       showToast(error.message);
@@ -760,7 +805,12 @@ function scheduleProjectPolling(projectId, delay = 700) {
    RENDER
    ========================================================= */
 
-function render() {
+function render(options = {}) {
+  app.classList.toggle(
+    "suppress-render-motion",
+    options.suppressMotion === true
+  );
+
   if (state.initializing) {
     app.innerHTML = renderProjectLoading();
     return;
@@ -2606,7 +2656,7 @@ async function runCurrentStep(
     );
 
 
-  render();
+  render({suppressMotion: true});
 
   scheduleProjectPolling(projectId);
 
@@ -2655,7 +2705,7 @@ async function runCurrentStep(
     );
 
 
-    render();
+    render({suppressMotion: true});
 
   }
 
@@ -2678,7 +2728,7 @@ async function runCurrentStep(
       requestError.message
     );
 
-    render();
+    render({suppressMotion: true});
   }
 }
 
