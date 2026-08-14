@@ -177,7 +177,7 @@ The book is uploaded to Gemini once. Later text calls reuse its stored interacti
 
 The real provider has also been verified manually with a billed five-step run: two adult portraits and one chapter illustration were saved locally, and the project reopened as Done with `5/5`. Automated tests remain quota-free.
 
-> Never commit `.env`, paste an API key into frontend code, or include a key in screenshots and screen recordings.
+> Never commit `.env`, paste an API key into frontend code.
 
 ## Architecture
 
