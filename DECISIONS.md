@@ -14,7 +14,7 @@ The original endpoint inferred “the next step” from the database. That is co
 
 ## Poll persisted state instead of adding SSE or WebSockets
 
-Per-item portrait progress and refresh recovery need fresh server state while a long image call is running. A richer real-time channel would be attractive, but it is outside the assessment scope, so I rejected that extra infrastructure. The detail page polls the existing detail endpoint only while a step is running; PHP releases the session lock before long work so another request can read progress. The cost is periodic GET traffic and updates that can be up to roughly one second late.
+Per-item portrait progress and refresh recovery need fresh server state while a long image call is running. A richer real-time channel would be attractive, but it is outside the assessment scope, so I rejected that extra infrastructure. The detail page polls the existing detail endpoint only while a step is running; PHP releases the session lock before long work so another request can read progress. During the billed run, Codex caught two mistakes in my server assumptions: `started_at` could not distinguish a live multi-item step from a dead one, and XAMPP Apache was killing `run-step.php` at its 120-second PHP limit before the provider's 180-second HTTP timeout. I changed stale detection to the existing `project_steps.updated_at`, refresh it after each portrait, extend only the pipeline endpoint to 600 seconds, and let it finish after a browser disconnect. The cost is periodic GET traffic, updates up to roughly one second late, and a genuinely abandoned request takes about seven minutes before Retry appears.
 
 ## Develop with mock responses, but keep the real REST path testable
 

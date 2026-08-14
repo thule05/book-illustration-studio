@@ -16,7 +16,11 @@ Import `database/schema.sql`, copy `.env.example` to `.env`, and adjust the data
 .\start.ps1
 ```
 
-Open `http://127.0.0.1:8000/frontend/`.
+The command starts (or reuses) XAMPP Apache and MySQL. Open
+`http://localhost/book-illustration-studio/frontend/`. Apache is used instead
+of PHP's single-process development server so project polling can show each
+portrait as it lands during a long running step. Stop the services from the
+XAMPP Control Panel when finished.
 
 ## Test
 
@@ -35,8 +39,11 @@ The test command creates a temporary isolated database and storage directory, ru
 - `GEMINI_IMAGE_MODEL` (default `gemini-3.1-flash-image`)
 - `GEMINI_IMAGE_SIZE` (`1K` by default)
 - `GEMINI_CONNECT_TIMEOUT_SECONDS`, `GEMINI_REQUEST_TIMEOUT_SECONDS`
+- `PIPELINE_EXECUTION_TIMEOUT_SECONDS` (default 600) keeps XAMPP's PHP request
+  alive for sequential image calls without changing the global `php.ini`
 - `MOCK_LATENCY_MS` to make running UI visible during local development
-- `STEP_STALE_SECONDS` for stuck-step recovery
+- `STEP_STALE_SECONDS` for stuck-step recovery (default 420; keep it above two
+  sequential Gemini request timeouts; Portraits refreshes a per-item heartbeat)
 - `STORAGE_ROOT` to override `backend/storage`
 
 Nano Banana image models require Cloud Billing. Billing must be active on the same Google Cloud project that owns the API key, otherwise image quota can remain zero.

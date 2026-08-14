@@ -2,7 +2,7 @@
 
 ## Strategy
 
-Backend smoke tests exercise the behavior where regressions are expensive: identity/session restoration, creation of all five persisted step rows, ordered execution, the 2-character/1-chapter caps, project status reconciliation, duplicate-running protection, delayed duplicate protection, failed-step retry, stale-step recovery, media persistence, and a complete mock pipeline. The suite uses a temporary database and storage root so it cannot reset development data.
+Backend smoke tests exercise the behavior where regressions are expensive: identity/session restoration, creation of all five persisted step rows, ordered execution, the 2-character/1-chapter caps, project status reconciliation, duplicate-running protection, delayed duplicate protection, failed-step retry, stale-step recovery, media persistence, and a complete mock pipeline. The test server has a one-second PHP execution limit while each mock generation lasts longer than one second, so the suite also proves that `run-step.php` extends only its own runtime budget. The suite uses a temporary database and storage root so it cannot reset development data.
 
 The real-provider contract suite injects a fake HTTP transport into `RealGeminiProvider`. It checks the resumable File API exchange, document URI reuse, `previous_interaction_id` chains, structured output caps, portrait and scene aspect ratios, local image persistence, readable quota errors, and the absence of automatic retries. It exercises the production request-building and response-parsing code without using a key, network call, or quota.
 
@@ -14,11 +14,11 @@ I deliberately do not test every CSS rule, simple text helper, or browser event.
 
 Command: `.\test.ps1`
 
-Frontend result: 6 passed, 0 failed.
+Frontend result: 7 passed, 0 failed.
 
 Real Gemini provider contract result: 11 passed, 0 failed.
 
-Backend result: 23 passed, 0 failed.
+Backend result: 24 passed, 0 failed.
 
 The backend run included all five mock steps, 5/5 Done persistence, an independent 0/5 Draft project, an independent 2/5 In progress project after sign-out/sign-in, retry, stale recovery, invalid order, and both concurrent/delayed duplicate guards.
 
