@@ -235,6 +235,17 @@ if (count($finalProject['chapters'] ?? []) <= 1) {
     fail('max 1 chapter', 'count=' . count($finalProject['chapters']));
 }
 
+$characterMedia = $finalProject['characters'][0]['portrait_url'] ?? '';
+$chapterMedia = $finalProject['chapters'][0]['illustration_url'] ?? '';
+if (
+    str_starts_with($characterMedia, '../backend/api/media.php?path=')
+    && str_starts_with($chapterMedia, '../backend/api/media.php?path=')
+) {
+    pass('media URLs work from the XAMPP project subdirectory');
+} else {
+    fail('media URLs work from the XAMPP project subdirectory', "portrait={$characterMedia} chapter={$chapterMedia}");
+}
+
 // Persisted list state across sign-out/sign-in, including independent projects.
 $draftCreated = httpRequest('POST', "{$baseUrl}/backend/api/projects.php", [
     'title' => 'Draft Book',
@@ -406,12 +417,11 @@ $projectId5 = (int) ($created5['json']['project']['id'] ?? 0);
 
 $pdo->prepare(
     "UPDATE project_steps
-     SET state = 'running', started_at = (NOW() - INTERVAL 600 SECOND)
+     SET state = 'running',
+         started_at = (NOW() - INTERVAL 600 SECOND),
+         updated_at = (NOW() - INTERVAL 600 SECOND)
      WHERE project_id = ? AND step = 'style'"
 )->execute([$projectId5]);
-
-putenv('STEP_STALE_SECONDS=300');
-$_ENV['STEP_STALE_SECONDS'] = '300';
 
 $stale = httpRequest('POST', "{$baseUrl}/backend/api/run-step.php", [
     'project_id' => $projectId5,

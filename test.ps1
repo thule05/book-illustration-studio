@@ -52,14 +52,19 @@ try {
     $env:DB_USER = 'root'
     $env:DB_PASSWORD = ''
     $env:GEMINI_PROVIDER = 'mock'
-    $env:MOCK_LATENCY_MS = '0'
+    # The test server itself allows only one second. Each mocked generation is
+    # deliberately slower, proving run-step.php extends its own execution budget.
+    $env:MOCK_LATENCY_MS = '1100'
+    $env:PIPELINE_EXECUTION_TIMEOUT_SECONDS = '5'
+    # Keep stale recovery fast and deterministic in the isolated test server.
+    $env:STEP_STALE_SECONDS = '300'
     $env:STORAGE_ROOT = $testStorage
     $env:SMOKE_BASE_URL = "http://127.0.0.1:$port"
     $env:SMOKE_PHP = $php
 
     $server = Start-Process `
         -FilePath $php `
-        -ArgumentList '-d', "session.save_path=$sessionPath", '-S', "127.0.0.1:$port" `
+        -ArgumentList '-d', "session.save_path=$sessionPath", '-d', 'max_execution_time=1', '-S', "127.0.0.1:$port" `
         -WorkingDirectory $repoRoot `
         -WindowStyle Hidden `
         -PassThru

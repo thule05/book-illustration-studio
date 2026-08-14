@@ -702,6 +702,17 @@ async function loadProjectDetail(
 }
 
 
+function setOptimisticRunningState(stepRecord) {
+  if (!stepRecord) {
+    return;
+  }
+
+  stepRecord.state = "running";
+  stepRecord.is_stale = false;
+  stepRecord.error_message = null;
+}
+
+
 function stopProjectPolling(projectId) {
   const key = String(projectId);
   const timer = projectPollTimers.get(key);
@@ -2556,10 +2567,7 @@ async function runCurrentStep(
     );
 
 
-  if (stepRecord) {
-    stepRecord.state =
-      "running";
-  }
+  setOptimisticRunningState(stepRecord);
 
   if (currentBackendStep === "portraits") {
     const nextPortrait = project.characters.find(

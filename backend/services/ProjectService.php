@@ -92,14 +92,13 @@ final class ProjectService
 
     private function fetchSteps(int $projectId): array
     {
-        $staleSeconds = max(1, (int) env('STEP_STALE_SECONDS', '300'));
+        $staleSeconds = max(1, (int) env('STEP_STALE_SECONDS', '420'));
         $stmt = $this->pdo->prepare(
             "SELECT step, step_order, state, attempt_count, started_at, completed_at,
                     error_message, updated_at,
                     CASE
                         WHEN state = 'running'
-                         AND started_at IS NOT NULL
-                         AND started_at < DATE_SUB(NOW(), INTERVAL {$staleSeconds} SECOND)
+                         AND updated_at < DATE_SUB(NOW(), INTERVAL {$staleSeconds} SECOND)
                         THEN 1 ELSE 0
                     END AS is_stale
              FROM project_steps
@@ -224,6 +223,8 @@ final class ProjectService
 
     private function mediaUrl(string $relativePath): string
     {
-        return '/backend/api/media.php?path=' . rawurlencode($relativePath);
+        // Relative to frontend/index.html so this works both at the web root and
+        // from XAMPP's /book-illustration-studio subdirectory.
+        return '../backend/api/media.php?path=' . rawurlencode($relativePath);
     }
 }

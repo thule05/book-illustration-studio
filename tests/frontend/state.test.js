@@ -125,6 +125,22 @@ test("failed step renders the same-step retry action", () => {
   assert.match(html, /Retry Style/);
 });
 
+test("retry clears stale UI while the new request is running", () => {
+  const result = evaluate(`(() => {
+    const step = {
+      state: "running",
+      is_stale: true,
+      error_message: "Old timeout"
+    };
+    setOptimisticRunningState(step);
+    return step;
+  })()`);
+
+  assert.equal(result.state, "running");
+  assert.equal(result.is_stale, false);
+  assert.equal(result.error_message, null);
+});
+
 test("critical project helpers have one declaration each", () => {
   for (const functionName of [
     "projectSubtitle",

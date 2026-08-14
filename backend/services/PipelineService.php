@@ -143,7 +143,10 @@ final class PipelineService
 
     private function recoverStaleStep(int $projectId, string $step): void
     {
-        $staleSeconds = (int) env('STEP_STALE_SECONDS', '300');
+        // The first portrait and the illustration can each make two sequential Gemini
+        // requests. Keep this above that request budget; per-item heartbeats below keep
+        // a multi-item Portraits step live without extending recovery indefinitely.
+        $staleSeconds = (int) env('STEP_STALE_SECONDS', '420');
         if ($staleSeconds <= 0) {
             return;
         }
@@ -155,8 +158,7 @@ final class PipelineService
              WHERE project_id = :project_id
                AND step = :step
                AND state = 'running'
-               AND started_at IS NOT NULL
-               AND started_at < DATE_SUB(NOW(), INTERVAL {$staleSeconds} SECOND)"
+               AND updated_at < DATE_SUB(NOW(), INTERVAL {$staleSeconds} SECOND)"
         );
         $stmt->bindValue('project_id', $projectId, PDO::PARAM_INT);
         $stmt->bindValue('step', $step);
@@ -340,6 +342,7 @@ final class PipelineService
                 $this->updateProjectChain($projectId, [
                     'gemini_image_interaction_id' => $imageInteractionId,
                 ]);
+                $this->touchRunningStep($projectId, 'portraits');
                 $context['image_interaction_id'] = $imageInteractionId;
             } catch (Throwable $e) {
                 $this->setCharacterPortraitStatus((int) $character['id'], 'failed', $e->getMessage());
@@ -468,6 +471,21 @@ final class PipelineService
             'project_id' => $projectId,
             'step' => $step,
             'error_message' => $message,
+        ]);
+    }
+
+    private function touchRunningStep(int $projectId, string $step): void
+    {
+        $stmt = $this->pdo->prepare(
+            'UPDATE project_steps
+             SET updated_at = NOW()
+             WHERE project_id = :project_id
+               AND step = :step
+               AND state = \'running\''
+        );
+        $stmt->execute([
+            'project_id' => $projectId,
+            'step' => $step,
         ]);
     }
 
