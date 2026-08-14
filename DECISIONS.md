@@ -16,9 +16,11 @@ The original endpoint inferred “the next step” from the database. That is co
 
 Per-item portrait progress and refresh recovery need fresh server state while a long image call is running. A richer real-time channel would be attractive, but it is outside the assessment scope, so I rejected that extra infrastructure. The detail page polls the existing detail endpoint only while a step is running; PHP releases the session lock before long work so another request can read progress. The cost is periodic GET traffic and updates that can be up to roughly one second late.
 
-## Develop with the mock provider and reserve paid images for final verification
+## Develop with mock responses, but keep the real REST path testable
 
-The image-generation models in the Nano Banana family are not included in the Gemini API free tier. The quota remains zero until Cloud Billing is enabled, and billing must be enabled on the same GCP project that owns the API key. The user specifically had no billed key, so I overrode any suggestion to block development on real image calls or put fake results in the frontend. `GEMINI_PROVIDER=mock` runs the full backend pipeline, writes placeholder media, and supports adjustable latency; real calls stay opt-in. This saves quota during iteration, but the real provider still requires a billed key and a final recorded end-to-end verification.
+The image-generation models in the Nano Banana family are not included in the Gemini API free tier. The quota remains zero until Cloud Billing is enabled, and billing must be enabled on the same GCP project that owns the API key. The user specifically had no billed key, so I overrode any suggestion to block development on paid calls or put fake results in the frontend. `GEMINI_PROVIDER=mock` runs the full backend pipeline through the same service and persistence code, while a fake HTTP transport tests the production REST request/response contract without quota. This saves money and still catches malformed upload, chaining, schema, and image handling; the accepted cost is that one billed end-to-end run remains a manual verification.
+
+For the opt-in real path I chose the current documented `gemini-3.6-flash` text model and `gemini-3.1-flash-image` Nano Banana model, both overrideable in `.env` because model IDs change. Codex initially focused on generation calls, but I caught that a retry after a partial failure could upload the book again or lose the first portrait's image chain. We now persist the uploaded file URI immediately and persist each successful portrait interaction ID before starting the next item. The extra writes buy correct resume behavior and cost control.
 
 ## Keep one service-level response contract
 
@@ -26,4 +28,4 @@ One repair attempt duplicated SQL inside `projects.php` and `project.php`, moved
 
 ## If I had one more day
 
-I would implement and verify `RealGeminiProvider` against the current Gemini REST endpoints, then record one complete billed run. That is the largest remaining gap between a fully tested local mock workflow and production-equivalent behavior.
+I would enable billing on the API key's own Google Cloud project, run the new project through all five real calls, inspect character consistency and error messages, and record that run for the submission. The contracts and persistence behavior are automated; the remaining uncertainty is the quality and live quota behavior of paid image generation.

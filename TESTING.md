@@ -4,6 +4,8 @@
 
 Backend smoke tests exercise the behavior where regressions are expensive: identity/session restoration, creation of all five persisted step rows, ordered execution, the 2-character/1-chapter caps, project status reconciliation, duplicate-running protection, delayed duplicate protection, failed-step retry, stale-step recovery, media persistence, and a complete mock pipeline. The suite uses a temporary database and storage root so it cannot reset development data.
 
+The real-provider contract suite injects a fake HTTP transport into `RealGeminiProvider`. It checks the resumable File API exchange, document URI reuse, `previous_interaction_id` chains, structured output caps, portrait and scene aspect ratios, local image persistence, readable quota errors, and the absence of automatic retries. It exercises the production request-building and response-parsing code without using a key, network call, or quota.
+
 Frontend state tests load the real `app.js` in a small DOM harness. They verify Draft/In progress/Done mapping from `completed_steps`, detail response mapping, media URLs, running/loading markup, failed-step retry markup, and that the three previously duplicated helpers each have exactly one declaration. Manual browser checks cover the interactions and visual state that the state harness does not render realistically.
 
 I deliberately do not test every CSS rule, simple text helper, or browser event. There is no coverage target. Real Gemini calls are also excluded because no billed API key is available; Nano Banana image models have no free-tier quota. The final submission still needs one real billed end-to-end run and the requested screen recording.
@@ -13,6 +15,8 @@ I deliberately do not test every CSS rule, simple text helper, or browser event.
 Command: `.\test.ps1`
 
 Frontend result: 6 passed, 0 failed.
+
+Real Gemini provider contract result: 11 passed, 0 failed.
 
 Backend result: 23 passed, 0 failed.
 
