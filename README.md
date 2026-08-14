@@ -71,6 +71,8 @@ GEMINI_PROVIDER=mock
 ```
 
 Keep `.env` local. It is ignored by Git and must never be committed.
+The repository-level Apache rules also deny HTTP access to `.env`, `.git`,
+local cookie files, and directory listings.
 
 ### 3. Start Apache and MySQL
 
@@ -121,7 +123,7 @@ The test command:
 
 It does not modify development projects, read the local Gemini key, call the Gemini network, or consume quota.
 
-The supplied script expects the default XAMPP test connection: MySQL on `127.0.0.1:3306`, user `root`, and an empty password. The latest recorded run is **42 passed, 0 failed**. The complete output and testing rationale are in [TESTING.md](TESTING.md).
+The supplied script expects the default XAMPP test connection: MySQL on `127.0.0.1:3306`, user `root`, and an empty password. The latest recorded run is **48 passed, 0 failed**. The complete output and testing rationale are in [TESTING.md](TESTING.md).
 
 ## Environment configuration
 
@@ -199,8 +201,8 @@ Browser
 - `project_steps` is the source of truth for five-step progress.
 - `projects.status` is a reconciled summary used by the project list.
 - `MockGeminiProvider` and `RealGeminiProvider` implement the same interface.
-- `backend/storage/` holds uploaded books and generated media.
-- `media.php` serves files through validated relative paths rather than exposing storage directly.
+- `backend/storage/` holds uploaded books and generated media and denies direct HTTP access.
+- `media.php` requires a signed-in user, validates the relative image path, and verifies project ownership before serving generated media.
 
 The real provider uses Gemini's REST APIs because the Interactions workflow is fully available over HTTP and does not require another SDK layer in the PHP stack. Its behavior follows steps 1–5 of Google's [Book illustration notebook](https://colab.research.google.com/github/google-gemini/cookbook/blob/main/examples/Book_illustration.ipynb), including structured character/chapter output and context chaining.
 
@@ -214,7 +216,7 @@ Every project starts with five persistent `project_steps` rows.
 - `pending → running → failed`
 - `failed → running → completed|failed` after an explicit retry
 
-Before provider execution, the backend locks the selected step and moves it to `running`. Requests for a running step are rejected, completed duplicates return existing data, and out-of-order steps cannot run. A stranded running step becomes retryable after the configured stale timeout.
+Every run request must name the exact step selected by the user. Before provider execution, the backend locks that step and moves it to `running`. Requests for a running step are rejected, completed duplicates return existing data, and out-of-order steps cannot run. A stranded running step becomes retryable after the configured stale timeout.
 
 Project-list status is derived from completed database steps:
 
@@ -227,11 +229,12 @@ The frontend displays this persisted state; it does not use `localStorage` or br
 ## Project structure
 
 ```text
+.htaccess                   Apache protection for local secrets and indexes
 backend/
   api/                     PHP JSON endpoints
   services/                project and pipeline rules
   services/providers/      mock and real Gemini providers
-  storage/                 local books and generated images
+  storage/                 local books and generated images, blocked from direct HTTP access
 database/
   schema.sql               MySQL schema
 docs/

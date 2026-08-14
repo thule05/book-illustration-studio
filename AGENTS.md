@@ -3,7 +3,8 @@
 ## Source of truth
 
 Implement only steps 1–5 of the Gradion assessment and Google’s Book Illustration notebook:
-    Style → Characters → Portraits → Chapters → Illustrations.
+
+`Style → Characters → Portraits → Chapters → Illustrations`
 
 Use `app-demo.html` as the UI/UX baseline. Do not implement animation, music, narration, media mixing, or public deployment.
 
@@ -34,36 +35,39 @@ Do not replace this architecture unless a requirement cannot be met with the exi
 `project_steps` is the source of truth.
 
 Valid transitions are:
-    - `pending → running → completed`
-    - `pending → running → failed`
-    - `failed → running → completed|failed`
-    - stale `running → failed`, followed by a user-triggered retry
+
+- `pending → running → completed`
+- `pending → running → failed`
+- `failed → running → completed|failed`
+- stale `running → failed`, followed by a user-triggered retry
 
 `projects.status` is only a reconciled summary:
-    - 0 completed steps: `draft`
-    - 1–4 completed steps: `in_progress`
-    - 5 completed steps: `done`
 
-+> Never infer completed progress from frontend memory. Never create a second pipeline-state system.
-+> The backend must lock the requested step before calling a provider.
-+> A running or completed duplicate must not execute another provider request. 
-+> The API request includes the exact step selected by the user, so a delayed duplicate cannot advance the next step.
+- 0 completed steps: `draft`
+- 1–4 completed steps: `in_progress`
+- 5 completed steps: `done`
+
+> Never infer completed progress from frontend memory. Never create a second pipeline-state system.
+> The backend must lock the requested step before calling a provider.
+> A running or completed duplicate must not execute another provider request.
+> The API request includes the exact step selected by the user, so a delayed duplicate cannot advance the next step.
 
 ## Gemini provider rules
 
 Development and automated tests use `GEMINI_PROVIDER=mock`.
 
 The real provider must:
-    - Read its API key only from `.env`.
-    - Upload the book once and persist the returned file URI.
-    - Reuse persisted interaction IDs instead of resending the full book.
-    - Request structured adult-character output capped at two.
-    - Request structured chapter output capped at one.
-    - Persist each portrait before starting the next portrait.
-    - Reuse portrait image context for the chapter illustration.
-    - Save images locally and expose them through `media.php`.
-    - Return readable errors without leaking secrets.
-    - Never retry a paid request automatically.
+
+- Read its API key only from `.env`.
+- Upload the book once and persist the returned file URI.
+- Reuse persisted interaction IDs instead of resending the full book.
+- Request structured adult-character output capped at two.
+- Request structured chapter output capped at one.
+- Persist each portrait before starting the next portrait.
+- Reuse portrait image context for the chapter illustration.
+- Save images locally and expose them through `media.php`.
+- Return readable errors without leaking secrets.
+- Never retry a paid request automatically.
 
 ## Frontend rules
 
@@ -82,15 +86,19 @@ The real provider must:
 - Commit `.env.example` with placeholders only.
 - Use prepared SQL statements.
 - Validate identity, project ownership, step names, caps, and file paths on the server.
+- Deny direct HTTP access to `.env`, Git metadata, and `backend/storage`.
+- Require authentication and project ownership before serving generated media.
 - Do not expose provider secrets in responses or logs.
 
 ## Commands
 
 Start:
-        `powershell -ExecutionPolicy Bypass -File .\start.ps1`
+
+`powershell -ExecutionPolicy Bypass -File .\start.ps1`
 
 Test:
-        `powershell -ExecutionPolicy Bypass -File .\test.ps1`
+
+`powershell -ExecutionPolicy Bypass -File .\test.ps1`
 
 Tests must use the isolated test database, temporary storage, and mock provider. 
 They must not consume Gemini quota.

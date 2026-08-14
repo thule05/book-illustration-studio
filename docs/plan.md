@@ -67,14 +67,16 @@ The assessment and Google's book-illustration notebook are the source of truth f
 - Verify two real portraits and one real chapter illustration.
 - Confirm the completed project reopens as Done with its results intact.
 - Check that `.env` and the API key are not tracked.
+- Deny HTTP access to local secrets and storage, and verify media ownership.
 - Review README, decisions, architecture, testing notes, and Git history.
 - Record the short real end-to-end screen demonstration requested by the recruiter.
 
 ## Completion criteria
 
-The repository is ready to submit when: 
-    + The automated checks pass
-    + One billed project completes all five steps
-    + Generated results survive reopening
-    + No secret is tracked
-    + The screen recording has been prepared.
+The repository is ready to submit when:
+
+- The automated checks pass.
+- One billed project completes all five steps.
+- Generated results survive reopening.
+- No secret is tracked or served over HTTP.
+- The screen recording has been prepared.

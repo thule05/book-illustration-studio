@@ -16,32 +16,36 @@ Browser
 
 ## Persistent pipeline state
 
-Every project receives five `project_steps` rows: 
-    + Style
-    + Characters
-    + Portraits
-    + Chapters
-    + Illustrations. 
-These rows are the source of truth for ordering, progress, running state, failures, retries, and stale-step recovery. 
+Every project receives five `project_steps` rows:
+
+- Style
+- Characters
+- Portraits
+- Chapters
+- Illustrations
+
+These rows are the source of truth for ordering, progress, running state, failures, retries, and stale-step recovery.
 `projects.status` is only a summary derived from the number of completed steps.
 
-Before starting a step, `PipelineService` locks its database row. 
-    + A running step cannot start again, and a completed step is returned without another Gemini call. 
-    + Failed steps can be retried without changing completed work. 
-    + A stale running step becomes retryable after its recovery timeout.
+Before starting a step, the API requires the exact step selected by the user and `PipelineService` locks its database row.
+
+- A running step cannot start again, and a completed step is returned without another Gemini call.
+- Failed steps can be retried without changing completed work.
+- A stale running step becomes retryable after its recovery timeout.
 
 ## Gemini providers
 
-`MockGeminiProvider` and `RealGeminiProvider` implement the same interface and use the same persistence path. 
+`MockGeminiProvider` and `RealGeminiProvider` implement the same interface and use the same persistence path.
 
-    + Mock mode supports normal development and automated testing without a key or image-generation cost.
+- Mock mode supports normal development and automated testing without a key or image-generation cost.
 
-    + Real mode follows the Google book-illustration pipeline:
-        1. Upload the book once with the Gemini File API.
-        2. Store a text interaction chain for style, adult characters, and the chapter prompt.
-        3. Store a separate image interaction chain for character portraits.
-        4. Continue the image chain when generating the chapter illustration so character identities remain consistent.
-        5. Persist each successful image before starting the next item, allowing a retry to resume partial progress.
+- Real mode follows the Google book-illustration pipeline:
+
+  1. Upload the book once with the Gemini File API.
+  2. Store a text interaction chain for style, adult characters, and the chapter prompt.
+  3. Store a separate image interaction chain for character portraits.
+  4. Continue the image chain when generating the chapter illustration so character identities remain consistent.
+  5. Persist each successful image before starting the next item, allowing a retry to resume partial progress.
 
 ## Frontend state
 
@@ -49,7 +53,7 @@ The frontend may optimistically display `running` immediately after a click, but
 
 ## File storage
 
-Book text and generated images are stored under `backend/storage`, or under the directory configured by `STORAGE_ROOT`. The database stores relative paths, and `media.php` serves those files to the frontend without hard-coded domain URLs.
+Book text and generated images are stored under `backend/storage`, or under the directory configured by `STORAGE_ROOT`. Apache denies direct HTTP access to the default storage directory. The database stores relative paths, and `media.php` serves only generated images after checking the signed-in user and project ownership, without hard-coded domain URLs.
 
 ## Verification
 
