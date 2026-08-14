@@ -1,4 +1,4 @@
-Testing
+## Testing
 
 I kept the test suite focused on the pipeline rules rather than coverage. The expensive bugs in this project are not small rendering differences; they are running steps out of order, losing completed work, or sending the same paid Gemini request twice.
 
