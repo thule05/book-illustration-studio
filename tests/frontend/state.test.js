@@ -1,0 +1,139 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const vm = require("node:vm");
+
+const source = fs.readFileSync(
+  path.join(__dirname, "..", "..", "frontend", "js", "app.js"),
+  "utf8"
+);
+
+const elements = {
+  app: { innerHTML: "" },
+  toast: { textContent: "", classList: { add() {}, remove() {} } },
+  "book-modal": { hidden: true, addEventListener() {} },
+  "book-modal-body": { textContent: "" },
+  "book-modal-close": { addEventListener() {}, focus() {} },
+};
+
+const context = vm.createContext({
+  console,
+  URLSearchParams,
+  document: {
+    getElementById(id) {
+      return elements[id] || null;
+    },
+    addEventListener() {},
+  },
+  window: {
+    location: { hash: "" },
+    addEventListener() {},
+    setTimeout,
+    clearTimeout,
+  },
+  fetch: async () => {
+    throw new Error("fetch should not run in state tests");
+  },
+  FileReader: function FileReader() {},
+});
+
+vm.runInContext(source, context, { filename: "frontend/js/app.js" });
+
+let passed = 0;
+function test(name, callback) {
+  callback();
+  passed += 1;
+  console.log(`PASS  ${name}`);
+}
+
+function evaluate(expression) {
+  return vm.runInContext(expression, context);
+}
+
+test("project list status derives from completed_steps", () => {
+  const statuses = evaluate(`[
+    mapProject({id: 1, title: "Draft", completed_steps: 0}).status,
+    mapProject({id: 2, title: "Partial", completed_steps: 2}).status,
+    mapProject({id: 3, title: "Done", completed_steps: 5}).status
+  ]`);
+
+  assert.deepEqual(Array.from(statuses), [
+    "CREATED",
+    "CHARACTERS_GENERATED",
+    "DONE",
+  ]);
+});
+
+test("progress helper clamps backend count to five", () => {
+  assert.equal(
+    evaluate(`getCompletedSteps(mapProject({id: 1, completed_steps: 99}))`),
+    5
+  );
+});
+
+test("detail mapping uses singular style and media URLs", () => {
+  const result = evaluate(`(() => {
+    const project = mapProject({id: 8, title: "Book", completed_steps: 0});
+    applyProjectDetail(project, {
+      project: {id: 8, title: "Book", book_text: "Text", status: "in_progress"},
+      steps: [{step: "style", state: "completed"}],
+      style: {style_text: "Watercolor"},
+      characters: [{name: "Mira", prompt: "Prompt", portrait_status: "completed", portrait_url: "/media/1"}],
+      chapters: []
+    });
+    return {style: project.style, url: project.characters[0].portraitUrl, completed: project.completedSteps};
+  })()`);
+
+  assert.equal(result.style, "Watercolor");
+  assert.equal(result.url, "/media/1");
+  assert.equal(result.completed, 1);
+});
+
+test("running panel renders spinner, explanation and disabled button", () => {
+  const html = evaluate(`(() => {
+    state.user = {name: "Tester"};
+    const project = mapProject({id: 9, title: "Book", completed_steps: 0}, [
+      {step: "style", state: "running"},
+      {step: "characters", state: "pending"},
+      {step: "portraits", state: "pending"},
+      {step: "chapters", state: "pending"},
+      {step: "illustrations", state: "pending"}
+    ]);
+    return renderProjectDetail(project);
+  })()`);
+
+  assert.match(html, /pipeline-spinner/);
+  assert.match(html, /Reopening this page mid-step/);
+  assert.match(html, /Generating\.\.\./);
+  assert.match(html, /disabled/);
+});
+
+test("failed step renders the same-step retry action", () => {
+  const html = evaluate(`(() => {
+    state.user = {name: "Tester"};
+    const project = mapProject({id: 10, title: "Book", completed_steps: 0}, [
+      {step: "style", state: "failed", error_message: "Mock failure"},
+      {step: "characters", state: "pending"},
+      {step: "portraits", state: "pending"},
+      {step: "chapters", state: "pending"},
+      {step: "illustrations", state: "pending"}
+    ]);
+    return renderProjectDetail(project);
+  })()`);
+
+  assert.match(html, /Mock failure/);
+  assert.match(html, /Retry Style/);
+});
+
+test("critical project helpers have one declaration each", () => {
+  for (const functionName of [
+    "projectSubtitle",
+    "progressMiniHtml",
+    "getCompletedSteps",
+  ]) {
+    const matches = source.match(new RegExp(`function\\s+${functionName}\\s*\\(`, "g"));
+    assert.equal(matches?.length, 1, functionName);
+  }
+});
+
+console.log(`\nSummary: ${passed} passed, 0 failed`);
