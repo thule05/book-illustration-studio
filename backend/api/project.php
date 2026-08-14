@@ -7,8 +7,9 @@ require_once __DIR__ . '/../bootstrap.php';
 require_method('GET');
 
 $userId = require_auth();
-$projectId = isset($_GET['id']) ? (int) $_GET['id'] : 0;
+session_write_close();
 
+$projectId = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 if ($projectId <= 0) {
     json_error(400, 'Project id is required.');
 }

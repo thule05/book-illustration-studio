@@ -7,7 +7,10 @@ final class ProviderFactory
     public static function create(): GeminiProvider
     {
         $provider = strtolower((string) env('GEMINI_PROVIDER', 'mock'));
-        $storageRoot = dirname(__DIR__, 2) . '/storage';
+        $storageRoot = rtrim(
+            (string) env('STORAGE_ROOT', dirname(__DIR__, 2) . '/storage'),
+            '/\\'
+        );
 
         if ($provider === 'gemini') {
             $apiKey = (string) env('GEMINI_API_KEY', '');

@@ -29,14 +29,34 @@ final class ProjectService
     public function listForUser(int $userId): array
     {
         $stmt = $this->pdo->prepare(
-            'SELECT id, title, status, created_at, updated_at
-             FROM projects
-             WHERE user_id = :user_id
-             ORDER BY created_at DESC'
+            'SELECT p.*,
+                    (
+                        SELECT COUNT(*)
+                        FROM project_steps ps
+                        WHERE ps.project_id = p.id
+                          AND ps.state = \'completed\'
+                    ) AS completed_steps
+             FROM projects p
+             WHERE p.user_id = :user_id
+             ORDER BY p.created_at DESC'
         );
         $stmt->execute(['user_id' => $userId]);
 
-        return $stmt->fetchAll();
+        $projects = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $completedSteps = (int) $row['completed_steps'];
+            $derivedStatus = self::statusFromCompletedSteps($completedSteps);
+
+            // Repair stale cached statuses left by interrupted or older code.
+            if ($row['status'] !== $derivedStatus) {
+                $this->updateStatus((int) $row['id'], $derivedStatus);
+                $row['status'] = $derivedStatus;
+            }
+
+            $projects[] = $this->formatProject($row, $completedSteps);
+        }
+
+        return $projects;
     }
 
     public function getDetail(int $projectId, int $userId): ?array
@@ -50,9 +70,19 @@ final class ProjectService
         $style = $this->fetchLatestStyle($projectId);
         $characters = $this->fetchCharacters($projectId);
         $chapters = $this->fetchChapters($projectId);
+        $completedSteps = $this->countCompletedSteps($steps);
+        $derivedStatus = self::statusFromCompletedSteps($completedSteps);
+
+        if ($project['status'] !== $derivedStatus) {
+            $this->updateStatus($projectId, $derivedStatus);
+            $project['status'] = $derivedStatus;
+        }
 
         return [
-            'project' => $this->formatProject($project),
+            'project' => $this->formatProject(
+                $project,
+                $completedSteps
+            ),
             'steps' => $steps,
             'style' => $style,
             'characters' => $characters,
@@ -62,11 +92,19 @@ final class ProjectService
 
     private function fetchSteps(int $projectId): array
     {
+        $staleSeconds = max(1, (int) env('STEP_STALE_SECONDS', '300'));
         $stmt = $this->pdo->prepare(
-            'SELECT step, step_order, state, attempt_count, started_at, completed_at, error_message
+            "SELECT step, step_order, state, attempt_count, started_at, completed_at,
+                    error_message, updated_at,
+                    CASE
+                        WHEN state = 'running'
+                         AND started_at IS NOT NULL
+                         AND started_at < DATE_SUB(NOW(), INTERVAL {$staleSeconds} SECOND)
+                        THEN 1 ELSE 0
+                    END AS is_stale
              FROM project_steps
              WHERE project_id = :project_id
-             ORDER BY step_order ASC'
+             ORDER BY step_order ASC"
         );
         $stmt->execute(['project_id' => $projectId]);
 
@@ -128,15 +166,59 @@ final class ProjectService
         return $rows;
     }
 
-    private function formatProject(array $project): array
+    public function refreshStatus(int $projectId): string
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT COUNT(*) FROM project_steps
+             WHERE project_id = :project_id AND state = \'completed\''
+        );
+        $stmt->execute(['project_id' => $projectId]);
+
+        $status = self::statusFromCompletedSteps((int) $stmt->fetchColumn());
+        $this->updateStatus($projectId, $status);
+
+        return $status;
+    }
+
+    private function countCompletedSteps(array $steps): int
+    {
+        return count(array_filter(
+            $steps,
+            static fn (array $step): bool => $step['state'] === 'completed'
+        ));
+    }
+
+    private static function statusFromCompletedSteps(int $completedSteps): string
+    {
+        if ($completedSteps >= 5) {
+            return 'done';
+        }
+
+        return $completedSteps === 0 ? 'draft' : 'in_progress';
+    }
+
+    private function updateStatus(int $projectId, string $status): void
+    {
+        $stmt = $this->pdo->prepare(
+            'UPDATE projects SET status = :status WHERE id = :id'
+        );
+        $stmt->execute([
+            'status' => $status,
+            'id' => $projectId,
+        ]);
+    }
+
+    private function formatProject(array $project, int $completedSteps): array
     {
         return [
             'id' => (int) $project['id'],
             'title' => $project['title'],
             'status' => $project['status'],
+            'book_text' => $project['book_text'],
             'book_file_path' => $project['book_file_path'],
             'created_at' => $project['created_at'],
             'updated_at' => $project['updated_at'],
+            'completed_steps' => max(0, min(5, $completedSteps)),
         ];
     }
 

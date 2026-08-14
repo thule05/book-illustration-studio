@@ -17,7 +17,11 @@ if (str_contains($relativePath, '..') || str_starts_with($relativePath, '/')) {
     json_error(400, 'Invalid path.');
 }
 
-$storageRoot = realpath(dirname(__DIR__) . '/storage');
+$configuredStorageRoot = (string) env(
+    'STORAGE_ROOT',
+    dirname(__DIR__) . '/storage'
+);
+$storageRoot = realpath($configuredStorageRoot);
 if ($storageRoot === false) {
     json_error(500, 'Storage root not found.');
 }

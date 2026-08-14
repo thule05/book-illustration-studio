@@ -28,11 +28,20 @@ final class PipelineService
         $this->projectService = $projectService;
     }
 
-    public function runStep(int $projectId, int $userId, ?string $userStyle = null): array
+    public function runStep(
+        int $projectId,
+        int $userId,
+        ?string $userStyle = null,
+        ?string $requestedStep = null
+    ): array
     {
         $project = $this->projectService->findOwnedProject($projectId, $userId);
         if ($project === null) {
             json_error(404, 'Project not found.');
+        }
+
+        if ($requestedStep !== null && !in_array($requestedStep, self::STEPS, true)) {
+            json_error(400, 'Invalid pipeline step.');
         }
 
         $targetStep = $this->resolveRunnableStep($projectId);
@@ -42,6 +51,23 @@ final class PipelineService
                 'message' => 'All steps are already completed.',
                 'detail' => $detail,
             ];
+        }
+
+        if ($requestedStep !== null && $requestedStep !== $targetStep) {
+            $steps = $this->fetchStepsIndexed($projectId);
+
+            if (($steps[$requestedStep]['state'] ?? '') === 'completed') {
+                return [
+                    'message' => 'Step already completed.',
+                    'step' => $requestedStep,
+                    'detail' => $this->projectService->getDetail($projectId, $userId),
+                ];
+            }
+
+            json_error(409, 'Requested step is not the current pipeline step.', [
+                'requested_step' => $requestedStep,
+                'current_step' => $targetStep,
+            ]);
         }
 
         $this->recoverStaleStep($projectId, $targetStep);
@@ -63,9 +89,10 @@ final class PipelineService
         try {
             $this->executeStep($projectId, $targetStep, $userStyle);
             $this->markStepCompleted($projectId, $targetStep);
-            $this->refreshProjectStatus($projectId);
+            $this->projectService->refreshStatus($projectId);
         } catch (Throwable $e) {
             $this->markStepFailed($projectId, $targetStep, $e->getMessage());
+            $this->projectService->refreshStatus($projectId);
             json_error(500, 'Step failed.', [
                 'step' => $targetStep,
                 'message' => $e->getMessage(),
@@ -83,29 +110,35 @@ final class PipelineService
     private function resolveRunnableStep(int $projectId): ?string
     {
         $steps = $this->fetchStepsIndexed($projectId);
+        $targetStep = null;
 
         foreach (self::STEPS as $order => $stepName) {
-            $state = $steps[$stepName]['state'] ?? 'pending';
+            if (!isset($steps[$stepName])) {
+                throw new RuntimeException("Project step {$stepName} is missing.");
+            }
+
+            $state = $steps[$stepName]['state'];
             if ($state === 'completed') {
+                if ($targetStep !== null) {
+                    json_error(409, 'Pipeline state is out of order.', [
+                        'completed_step' => $stepName,
+                        'blocked_by_step' => $targetStep,
+                    ]);
+                }
+
                 continue;
             }
 
-            if ($order > 1) {
-                $previous = self::STEPS[$order - 1];
-                if (($steps[$previous]['state'] ?? '') !== 'completed') {
-                    json_error(409, 'Previous step is not completed.', [
-                        'required_step' => $previous,
-                        'requested_step' => $stepName,
-                    ]);
-                }
+            if (!in_array($state, ['pending', 'failed', 'running'], true)) {
+                throw new RuntimeException("Invalid state for project step {$stepName}.");
             }
 
-            if (in_array($state, ['pending', 'failed', 'running'], true)) {
-                return $stepName;
+            if ($targetStep === null) {
+                $targetStep = $stepName;
             }
         }
 
-        return null;
+        return $targetStep;
     }
 
     private function recoverStaleStep(int $projectId, string $step): void
@@ -116,18 +149,17 @@ final class PipelineService
         }
 
         $stmt = $this->pdo->prepare(
-            'UPDATE project_steps
-             SET state = \'failed\',
-                 error_message = \'Step timed out. Please retry.\'
+            "UPDATE project_steps
+             SET state = 'failed',
+                 error_message = 'Step timed out. Please retry.'
              WHERE project_id = :project_id
                AND step = :step
-               AND state = \'running\'
+               AND state = 'running'
                AND started_at IS NOT NULL
-               AND started_at < (NOW() - INTERVAL :seconds SECOND)'
+               AND started_at < DATE_SUB(NOW(), INTERVAL {$staleSeconds} SECOND)"
         );
         $stmt->bindValue('project_id', $projectId, PDO::PARAM_INT);
         $stmt->bindValue('step', $step);
-        $stmt->bindValue('seconds', $staleSeconds, PDO::PARAM_INT);
         $stmt->execute();
     }
 
@@ -423,26 +455,6 @@ final class PipelineService
             'project_id' => $projectId,
             'step' => $step,
             'error_message' => $message,
-        ]);
-    }
-
-    private function refreshProjectStatus(int $projectId): void
-    {
-        $steps = $this->fetchStepsIndexed($projectId);
-        $allCompleted = true;
-
-        foreach (self::STEPS as $stepName) {
-            if (($steps[$stepName]['state'] ?? '') !== 'completed') {
-                $allCompleted = false;
-                break;
-            }
-        }
-
-        $status = $allCompleted ? 'done' : 'in_progress';
-        $stmt = $this->pdo->prepare('UPDATE projects SET status = :status WHERE id = :id');
-        $stmt->execute([
-            'status' => $status,
-            'id' => $projectId,
         ]);
     }
 
