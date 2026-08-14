@@ -1,87 +1,104 @@
 # Book Illustration Studio — Agent Instructions
 
-## Project Goal
+## Source of truth
 
-Build a local full-stack web application that turns book text
-into a sequence of AI-assisted illustration outputs.
+Implement only steps 1–5 of the Gradion assessment and Google’s Book Illustration notebook:
+    Style → Characters → Portraits → Chapters → Illustrations.
 
-The application follows five user-driven pipeline steps:
+Use `app-demo.html` as the UI/UX baseline. Do not implement animation, music, narration, media mixing, or public deployment.
 
-1. Style
-2. Characters
-3. Portraits
-4. Chapters
-5. Illustrations
-
-## Current Stack
+## Stack
 
 - Frontend: HTML, CSS, JavaScript
-- Backend: PHP
-- Database: MySQL
-- Database access: PDO
-- AI: Gemini API
+- Backend: PHP 8 with JSON endpoints
+- Database: MySQL through PDO
+- Storage: local filesystem
+- AI: mock provider or Gemini REST provider
+- Local runtime: Windows and XAMPP
 
-## Product Constraints
+Do not replace this architecture unless a requirement cannot be met with the existing implementation.
 
-- Maximum 2 adult characters.
-- Maximum 1 chapter.
-- The five steps must run in order.
-- Each step requires an explicit user action.
-- Completed work must persist.
-- Refreshing the page must not restart completed work.
-- A failed step must be retryable.
-- Duplicate Gemini execution must be prevented.
-- Gemini API keys must never be committed to Git.
+## Fixed product boundaries
 
-## Frontend Guidelines
+- Maximum two adult characters.
+- Maximum one chapter.
+- Every pipeline step requires an explicit user action.
+- Steps must run in order.
+- Completed work survives refresh, sign-out, and server restart.
+- Failed work retries only the same step.
+- Gemini calls are never retried automatically.
+- Book text and generated media remain on the local filesystem.
+
+## Pipeline state
+
+`project_steps` is the source of truth.
+
+Valid transitions are:
+    - `pending → running → completed`
+    - `pending → running → failed`
+    - `failed → running → completed|failed`
+    - stale `running → failed`, followed by a user-triggered retry
+
+`projects.status` is only a reconciled summary:
+    - 0 completed steps: `draft`
+    - 1–4 completed steps: `in_progress`
+    - 5 completed steps: `done`
+
++> Never infer completed progress from frontend memory. Never create a second pipeline-state system.
++> The backend must lock the requested step before calling a provider.
++> A running or completed duplicate must not execute another provider request. 
++> The API request includes the exact step selected by the user, so a delayed duplicate cannot advance the next step.
+
+## Gemini provider rules
+
+Development and automated tests use `GEMINI_PROVIDER=mock`.
+
+The real provider must:
+    - Read its API key only from `.env`.
+    - Upload the book once and persist the returned file URI.
+    - Reuse persisted interaction IDs instead of resending the full book.
+    - Request structured adult-character output capped at two.
+    - Request structured chapter output capped at one.
+    - Persist each portrait before starting the next portrait.
+    - Reuse portrait image context for the chapter illustration.
+    - Save images locally and expose them through `media.php`.
+    - Return readable errors without leaking secrets.
+    - Never retry a paid request automatically.
+
+## Frontend rules
 
 - Keep the existing Gradion visual language.
-- Use the provided app-demo.html as the baseline, not as a reason to blindly copy the UI.
-- Prefer clear spacing, readable typography, responsive layouts, and accessible controls.
-- Provide meaningful empty, loading, and error states.
-- Do not add unnecessary UI or features outside the assessment scope.
-
-## Backend Guidelines
-
-- Keep API responsibilities small and explicit.
-- Validate input on the server.
-- Use prepared SQL statements.
-- Do not trust frontend state for pipeline progress.
-- Persist pipeline state in the database.
-- Do not execute Gemini calls when a step is already completed.
-- Handle retryable failures without losing completed work.
+- Render project status from backend `completed_steps`.
+- Show done, current, and pending stepper states.
+- Show the name of the running step.
+- Show per-item portrait and illustration progress.
+- Poll project detail only while work is running.
+- Show retry and stuck-step recovery actions.
+- Do not put pipeline state in `localStorage`.
 
 ## Security
 
-- Never hard-code API keys.
-- Never commit `.env`.
-- Use `.env.example` for required environment variables.
-- Do not expose secrets in API responses or logs.
+- Never commit `.env`, API keys, sessions, generated books, or images.
+- Commit `.env.example` with placeholders only.
+- Use prepared SQL statements.
+- Validate identity, project ownership, step names, caps, and file paths on the server.
+- Do not expose provider secrets in responses or logs.
 
-## AI Workflow
+## Commands
 
-Before implementing a Gemini pipeline step:
+Start:
+        `powershell -ExecutionPolicy Bypass -File .\start.ps1`
 
-1. Verify the required behavior from the assessment and notebook.
-2. Identify the input and output contract.
-3. Keep the implementation consistent with previous pipeline steps.
-4. Prefer the smallest implementation that satisfies the requirement.
-5. Record important architectural decisions in DECISIONS.md.
+Test:
+        `powershell -ExecutionPolicy Bypass -File .\test.ps1`
 
-## Testing
+Tests must use the isolated test database, temporary storage, and mock provider. 
+They must not consume Gemini quota.
 
-Backend tests should focus on:
+## Documentation ownership
 
-- Step ordering
-- Progress/state transitions
-- Retry behavior
-- Duplicate execution protection
-
-Frontend tests should focus on important states such as:
-
-- Empty
-- Loading
-- Error
-- User actions that change pipeline state
-
-Do not create unnecessary tests only for the sake of coverage.
+- `README.md`: setup, commands, environment, and architecture overview.
+- `DECISIONS.md`: real engineering trade-offs and AI overrides.
+- `TESTING.md`: strategy, deliberate omissions, and actual test output.
+- `docs/plan.md`: implementation milestones.
+- `docs/architecture.md`: system structure and request flow.
