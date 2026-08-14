@@ -863,7 +863,7 @@ function renderNav() {
 
         <div class="gd-nav-links">
           <a
-            onclick="navigate('#/projects')"
+            href="#/projects"
           >
             Projects
           </a>
@@ -884,9 +884,13 @@ function renderNav() {
             )}
           </span>
 
-          <a onclick="signOut()">
+          <button
+            class="nav-link-button"
+            type="button"
+            onclick="signOut()"
+          >
             Sign out
-          </a>
+          </button>
 
         </div>
 
@@ -1253,7 +1257,7 @@ function renderNewProject() {
 
       <a
         class="back-link"
-        onclick="navigate('#/projects')"
+        href="#/projects"
       >
         ← Back to projects
       </a>
@@ -1505,39 +1509,34 @@ function getLoadingMessage(
   if (stepKey === "STYLE") {
     return `
       Reading your book text and defining an art style
-      — usually a couple of seconds in this demo,
-      longer for real Gemini calls...
+      — this may take a while with real Gemini calls...
     `;
   }
 
   if (stepKey === "CHARACTERS") {
     return `
       Generating the character list from your book's text
-      — usually a couple of seconds in this demo,
-      longer for real Gemini calls...
+      — this may take a while with real Gemini calls...
     `;
   }
 
   if (stepKey === "PORTRAITS") {
     return `
-      Generating character portraits
-      — usually a couple of seconds in this demo,
-      longer for real Gemini calls...
+      Generating character portraits one at a time
+      — image generation may take longer...
     `;
   }
 
   if (stepKey === "CHAPTERS") {
     return `
       Reading your book text and defining the key chapter
-      — usually a couple of seconds in this demo,
-      longer for real Gemini calls...
+      — this may take a while with real Gemini calls...
     `;
   }
 
   return `
     Creating the final chapter illustration
-    — usually a couple of seconds in this demo,
-    longer for real Gemini calls...
+    — image generation may take longer...
   `;
 }
 
@@ -1947,7 +1946,7 @@ function renderProjectDetail(
 
       <a
         class="back-link"
-        onclick="navigate('#/projects')"
+        href="#/projects"
       >
         ← Back to projects
       </a>

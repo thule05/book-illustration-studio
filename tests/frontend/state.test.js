@@ -108,6 +108,30 @@ test("running panel renders spinner, explanation and disabled button", () => {
   assert.match(html, /disabled/);
 });
 
+test("navigation uses keyboard-focusable controls", () => {
+  const html = evaluate(`(() => {
+    state.user = {name: "Tester"};
+    return renderNav() + renderNewProject();
+  })()`);
+
+  assert.match(html, /href="#\/projects"/);
+  assert.match(html, /<button[\s\S]*class="nav-link-button"[\s\S]*Sign out/);
+  assert.doesNotMatch(html, /<a[^>]*onclick=/);
+});
+
+test("loading messages describe real calls without demo timing", () => {
+  const messages = evaluate(`[
+    getLoadingMessage("STYLE"),
+    getLoadingMessage("CHARACTERS"),
+    getLoadingMessage("PORTRAITS"),
+    getLoadingMessage("CHAPTERS"),
+    getLoadingMessage("ILLUSTRATIONS")
+  ].join(" ")`);
+
+  assert.doesNotMatch(messages, /couple of seconds in this demo/i);
+  assert.match(messages, /Gemini calls|image generation/i);
+});
+
 test("failed step renders the same-step retry action", () => {
   const html = evaluate(`(() => {
     state.user = {name: "Tester"};

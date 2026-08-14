@@ -483,14 +483,18 @@ textarea {
   font-size: 12px;
 }
 
-.gd-nav-user a {
+.gd-nav-user .nav-link-button {
   color: var(--grad-ink-3);
-  text-decoration: none;
+  border: 0;
+  padding: 0;
+  background: transparent;
   cursor: pointer;
+  font-family: inherit;
   font-size: 13px;
+  line-height: inherit;
 }
 
-.gd-nav-user a:hover {
+.gd-nav-user .nav-link-button:hover {
   color: var(--grad-orange);
 }
 
@@ -1343,7 +1347,7 @@ button:focus-visible,
     gap: 8px;
   }
 
-  .gd-nav-user a {
+  .gd-nav-user > span {
     display: none;
   }
 
