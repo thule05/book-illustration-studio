@@ -1,31 +1,107 @@
-# Testing
+Testing
 
-## Strategy
+I kept the test suite focused on the pipeline rules rather than coverage. The expensive bugs in this project are not small rendering differences; they are running steps out of order, losing completed work, or sending the same paid Gemini request twice.
 
-Backend smoke tests exercise the behavior where regressions are expensive: identity/session restoration, creation of all five persisted step rows, ordered execution, the 2-character/1-chapter caps, project status reconciliation, duplicate-running protection, delayed duplicate protection, failed-step retry, stale-step recovery, media persistence, and a complete mock pipeline. The test server has a one-second PHP execution limit while each mock generation lasts longer than one second, so the suite also proves that `run-step.php` extends only its own runtime budget. The suite uses a temporary database and storage root so it cannot reset development data.
+## Automated tests
 
-The real-provider contract suite injects a fake HTTP transport into `RealGeminiProvider`. It checks the resumable File API exchange, document URI reuse, `previous_interaction_id` chains, structured output caps, portrait and scene aspect ratios, local image persistence, readable quota errors, and the absence of automatic retries. It exercises the production request-building and response-parsing code without using a key, network call, or quota.
+Run everything with:
 
-Frontend state tests load the real `app.js` in a small DOM harness. They verify Draft/In progress/Done mapping from `completed_steps`, detail response mapping, media URLs, running/loading markup, failed-step retry markup, and that the three previously duplicated helpers each have exactly one declaration. Manual browser checks cover the interactions and visual state that the state harness does not render realistically.
+```powershell
+powershell -ExecutionPolicy Bypass -File .\test.ps1
+```
 
-I deliberately do not test every CSS rule, simple text helper, or browser event. There is no coverage target. Real Gemini calls are also excluded because no billed API key is available; Nano Banana image models have no free-tier quota. The final submission still needs one real billed end-to-end run and the requested screen recording.
+The script creates a temporary MySQL database and storage directory, starts an isolated PHP server, runs the tests, and cleans up afterward. It forces `GEMINI_PROVIDER=mock`, so the command does not touch my development data, read my Gemini key, or consume paid quota.
 
-## Real run report — 14 August 2026
+There are three test groups:
+    - The frontend tests load the real `frontend/js/app.js` in a small Node.js DOM harness. They cover project progress, loading, failure, retry, media mapping, and the helper functions that were previously duplicated.
 
-Command: `.\test.ps1`
+    - The backend smoke test calls the PHP APIs and runs a complete five-step project with the mock provider. It also covers sign-in persistence, step ordering, the two-character and one-chapter caps, duplicate requests, failed-step retry, and stale-step recovery.
 
-Frontend result: 7 passed, 0 failed.
+    - The real-provider contract test injects a fake HTTP transport into `RealGeminiProvider`. This checks book upload, interaction chaining, structured output, image saving, and the no-auto-retry rule without making a Gemini network request.
 
-Real Gemini provider contract result: 11 passed, 0 failed.
+## What I left manual
 
-Backend result: 24 passed, 0 failed.
+I did not test individual CSS rules, every small text helper, or every browser event. Those tests would add maintenance without protecting the behavior that matters most here.
 
-The backend run included all five mock steps, 5/5 Done persistence, an independent 0/5 Draft project, an independent 2/5 In progress project after sign-out/sign-in, retry, stale recovery, invalid order, and both concurrent/delayed duplicate guards.
+Live Gemini calls are also excluded from the normal test command. They cost money, take much longer, and can fail because of quota or model availability rather than an application regression. I used mock and contract tests while developing, then performed one billed end-to-end check after the automated suite was stable.
 
-Manual in-app browser verification also passed:
+A full browser E2E suite, load testing, and public-deployment checks are outside this submission. The assessment does not require E2E or rate-limiting infrastructure, and the application is intended to run locally.
 
-- Style switched to running immediately with spinner, explanatory copy, and disabled Generating button.
-- Completion changed the stepper to a checked Style and made Characters current.
-- Project list showed one orange segment, `1 of 5`, and In progress.
-- Signing out and signing back in with the same email preserved `1 of 5` and In progress.
-- Characters showed its named running state; portrait generation retained the overall running panel and item cards while the backend call was active.
+## Automated test report 
+
+Command:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\test.ps1
+```
+
+Actual output:
+
+```text
+PASS  project list status derives from completed_steps
+PASS  progress helper clamps backend count to five
+PASS  detail mapping uses singular style and media URLs
+PASS  running panel renders spinner, explanation and disabled button
+PASS  failed step renders the same-step retry action
+PASS  retry clears stale UI while the new request is running
+PASS  critical project helpers have one declaration each
+
+Summary: 7 passed, 0 failed
+
+PASS  resumable book upload contract
+PASS  upload session does not forward API key
+PASS  book context and style interaction are chained
+PASS  adult character output is structured and capped at 2
+PASS  first portrait initializes image chain and saves media
+PASS  second portrait reuses the persisted image chain
+PASS  chapter output is structured and capped at 1
+PASS  chapter illustration reuses portraits and saves media
+PASS  expected Gemini request count without auto-retry
+PASS  API failure is retryable by user, not automatically retried or leaked
+PASS  provider factory switches from mock to real
+
+Summary: 11 passed, 0 failed
+
+PASS  database connection
+PASS  identity POST
+PASS  identity session restore
+PASS  create project
+PASS  create project inserts 5 steps
+PASS  book text saved to storage
+PASS  project detail
+PASS  pipeline step style
+PASS  delayed duplicate cannot advance next step
+PASS  pipeline step characters
+PASS  pipeline step portraits
+PASS  pipeline step chapters
+PASS  pipeline step illustrations
+PASS  pipeline completes project
+PASS  max 2 characters
+PASS  max 1 chapter
+PASS  media URLs work from the XAMPP project subdirectory
+PASS  sign out clears backend session
+PASS  project status and progress persist after login
+PASS  invalid step order blocked
+PASS  duplicate running step blocked
+PASS  retry failed step
+PASS  stale running step recovered and retried
+PASS  adult characters only
+
+Summary: 24 passed, 0 failed
+```
+
+Total: 42 passed, 0 failed.
+
+## Manual Gemini check 
+
+After enabling billing, I created a new project and ran all five steps with `RealGeminiProvider`, using `gemini-3.6-flash` for text and `gemini-3.1-flash-image` for images.
+
+The run produced: 
+    + 2 adult characters
+    + 2 real portraits
+    + 1 chapter prompt
+    + 1 real chapter illustration. 
+The project finished as Done with `5/5`, and reopening it preserved the prompts and generated media. 
+No paid request was retried automatically.
+
+The first image run also exposed a real environment problem: PHP could end the request before both portraits finished. I extended only the pipeline endpoint's execution budget and added a heartbeat after each completed portrait, then repeated the pipeline successfully. This is why the normal test suite also runs mock generation under a deliberately short PHP execution limit.
