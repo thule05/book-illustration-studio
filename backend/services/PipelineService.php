@@ -242,7 +242,20 @@ final class PipelineService
 
     private function runStyle(int $projectId, array $context, ?string $userStyle): void
     {
-        $upload = $this->provider->uploadBook($projectId, (string) $context['book_text']);
+        $bookFileUri = trim((string) ($context['book_file_uri'] ?? ''));
+        if ($bookFileUri === '') {
+            $upload = $this->provider->uploadBook($projectId, (string) $context['book_text']);
+            $bookFileUri = trim((string) ($upload['book_file_uri'] ?? ''));
+            if ($bookFileUri === '') {
+                throw new RuntimeException('The provider did not return a book file URI.');
+            }
+
+            // Persist immediately so a failed style interaction can reuse the same upload on retry.
+            $this->updateProjectChain($projectId, [
+                'gemini_book_file_uri' => $bookFileUri,
+            ]);
+            $context['book_file_uri'] = $bookFileUri;
+        }
 
         $result = $this->provider->generateStyle($context, $userStyle);
 
@@ -257,7 +270,6 @@ final class PipelineService
         ]);
 
         $this->updateProjectChain($projectId, [
-            'gemini_book_file_uri' => $upload['book_file_uri'] ?? null,
             'gemini_text_interaction_id' => $result['text_interaction_id'],
             'status' => 'in_progress',
         ]);
@@ -297,7 +309,7 @@ final class PipelineService
             throw new RuntimeException('No characters found for portrait generation.');
         }
 
-        $imageInteractionId = null;
+        $imageInteractionId = trim((string) ($context['image_interaction_id'] ?? ''));
 
         foreach ($characters as $character) {
             if ($character['portrait_status'] === 'completed' && !empty($character['portrait_path'])) {
@@ -322,16 +334,17 @@ final class PipelineService
                     'portrait_path' => $relativePath,
                     'id' => $character['id'],
                 ]);
+
+                // Each portrait extends the image conversation. Save and reuse that link before
+                // generating the next item so partial progress survives a later failure.
+                $this->updateProjectChain($projectId, [
+                    'gemini_image_interaction_id' => $imageInteractionId,
+                ]);
+                $context['image_interaction_id'] = $imageInteractionId;
             } catch (Throwable $e) {
                 $this->setCharacterPortraitStatus((int) $character['id'], 'failed', $e->getMessage());
                 throw $e;
             }
-        }
-
-        if ($imageInteractionId !== null) {
-            $this->updateProjectChain($projectId, [
-                'gemini_image_interaction_id' => $imageInteractionId,
-            ]);
         }
     }
 

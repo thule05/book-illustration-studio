@@ -29,10 +29,11 @@ if ($method === 'POST') {
         json_error(400, 'Book text is required.');
     }
 
-    $storageRoot = rtrim(
-        (string) env('STORAGE_ROOT', dirname(__DIR__) . '/storage'),
-        '/\\'
-    );
+    $storageRoot = trim((string) env('STORAGE_ROOT', ''));
+    if ($storageRoot === '') {
+        $storageRoot = dirname(__DIR__) . '/storage';
+    }
+    $storageRoot = rtrim($storageRoot, '/\\');
     $absoluteBookPath = null;
 
     try {
